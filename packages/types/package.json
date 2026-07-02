@@ -1,6 +1,6 @@
 {
   "name": "@fourotwo/types",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": false,
   "description": "Shared types + DID derivation for fourotwo (facilitator, SDK, registry, dashboard)",
   "license": "MIT",
