@@ -1,7 +1,7 @@
 {
   "name": "@fourotwo/agent-sdk",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "fourotwo TypeScript SDK for automatic x402 payment handling",
   "license": "MIT",
   "type": "module",
@@ -16,14 +16,18 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@fourotwo/types": "*",
+    "@fourotwo/types": "^0.1.0",
     "@noble/ed25519": "^2.1.0",
     "@noble/hashes": "^1.5.0"
   },

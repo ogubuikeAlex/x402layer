@@ -1,7 +1,7 @@
 {
   "name": "@fourotwo/types",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Shared types + DID derivation for fourotwo (facilitator, SDK, registry, dashboard)",
   "license": "MIT",
   "type": "module",
@@ -16,11 +16,15 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@noble/hashes": "^1.5.0"
