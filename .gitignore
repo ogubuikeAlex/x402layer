@@ -33,7 +33,7 @@ Thumbs.db
 !.vscode/extensions.json
 fourotwo*
 DEMO*
-services
+services/dashboard
 
 .claude
 README.md
