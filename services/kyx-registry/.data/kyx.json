@@ -1,0 +1,38 @@
+{
+  "operators": [
+    {
+      "email": "oracle@fourotwo.dev",
+      "verified": true,
+      "verifiedAt": "2026-06-21T02:41:56.193Z"
+    }
+  ],
+  "agents": [
+    {
+      "did": "did:fourotwo:casper:0b1ece0a6690a8a6277002c74c03876d75f792d4e87e45b7b4231eded688b583",
+      "agentName": "RWA Oracle Agent",
+      "operatorEmail": "oracle@fourotwo.dev",
+      "publicKey": "01cb46407d6e11f9a19d1df61d7b096d1805c21f68fc7b2dee00364447371d3553",
+      "walletAddress": "0b1ece0a6690a8a6277002c74c03876d75f792d4e87e45b7b4231eded688b583",
+      "network": "casper",
+      "registeredAt": "2026-06-21T02:41:56.203Z",
+      "onChainStatus": "unconfigured"
+    }
+  ],
+  "settlements": [],
+  "trust": [
+    {
+      "did": "did:fourotwo:casper:0b1ece0a6690a8a6277002c74c03876d75f792d4e87e45b7b4231eded688b583",
+      "score": 80,
+      "tier": "VERIFIED",
+      "completionRate": 100,
+      "operatorVerified": true,
+      "volumeTierScore": 0,
+      "transactionCount": 0,
+      "totalVolumeUsd": 0,
+      "flags": [
+        "on_chain_sync_unconfigured"
+      ],
+      "lastUpdated": "2026-06-21T02:41:56.205Z"
+    }
+  ]
+}

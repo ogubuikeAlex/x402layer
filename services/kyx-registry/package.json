@@ -1,0 +1,28 @@
+{
+  "name": "@fourotwo/kyx-registry",
+  "version": "0.1.0",
+  "private": true,
+  "description": "fourotwo KYX registry service for agent registration and trust scoring",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@fourotwo/types": "*",
+    "casper-js-sdk": "^5.0.12",
+    "fastify": "^4.28.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.8.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

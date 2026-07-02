@@ -1,0 +1,38 @@
+{
+  "operators": [
+    {
+      "email": "ogubuikealex@gmail.com",
+      "verified": true,
+      "verifiedAt": "2026-06-29T17:35:09.590Z"
+    }
+  ],
+  "agents": [
+    {
+      "did": "did:fourotwo:casper:c19a22eb7c341809bf51e976c66e722a71b5925a5e6cf0d32809449507d1f332",
+      "agentName": "RWA Oracle Agent",
+      "operatorEmail": "ogubuikealex@gmail.com",
+      "publicKey": "015beebd6ee2dcc82bf53ede1f30beb9bf598bc32cacc55261719afb1b9045b4cd",
+      "walletAddress": "c19a22eb7c341809bf51e976c66e722a71b5925a5e6cf0d32809449507d1f332",
+      "network": "casper",
+      "registeredAt": "2026-06-29T17:35:09.646Z",
+      "onChainStatus": "unconfigured"
+    }
+  ],
+  "settlements": [],
+  "trust": [
+    {
+      "did": "did:fourotwo:casper:c19a22eb7c341809bf51e976c66e722a71b5925a5e6cf0d32809449507d1f332",
+      "score": 80,
+      "tier": "VERIFIED",
+      "completionRate": 100,
+      "operatorVerified": true,
+      "volumeTierScore": 0,
+      "transactionCount": 0,
+      "totalVolumeUsd": 0,
+      "flags": [
+        "on_chain_sync_unconfigured"
+      ],
+      "lastUpdated": "2026-06-29T17:35:09.653Z"
+    }
+  ]
+}
