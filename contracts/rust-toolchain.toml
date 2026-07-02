@@ -1,0 +1,11 @@
+# Pin the exact nightly that Odra 2.8.1 is built and tested against
+# (see github.com/odradev/odra @ release/2.8.1 `rust-toolchain`).
+#
+# Nightly is REQUIRED: odra-casper-wasm-env uses `feature(core_intrinsics)`.
+# The Casper host-function imports (casper_revert, etc.) are intentionally left
+# unresolved in contract wasm; see `.cargo/config.toml` for the wasm linker flag
+# that keeps `cargo odra build` working even when a local rustup override exists.
+[toolchain]
+channel = "nightly-2026-01-01"
+components = ["rustfmt", "clippy"]
+targets = ["wasm32-unknown-unknown"]

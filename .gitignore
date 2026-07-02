@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.turbo/
+*.tsbuildinfo
+
+# Rust
+target/
+
+# Environment / secrets
+.env
+.env.local
+*.pem
+*.key
+secret_key.pem
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local databases / ledgers
+*.sqlite
+*.sqlite3
+ledger.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+fourotwo*
+DEMO*
+packages
+services
+
+.claude
+README.md

@@ -1,0 +1,5 @@
+[[contracts]]
+fqn = "fourotwo_contracts::kyx_registry::KyxRegistry"
+
+[[contracts]]
+fqn = "fourotwo_contracts::settlement_vault::SettlementVault"

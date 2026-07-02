@@ -1,0 +1,18 @@
+{
+  "network": "casper-test",
+  "casper": {
+    "kyx_registry": {
+      "deploy_hash": "4c1a1387f71795be654529197d3581139dc8445fade545f3eab6517b006fed7a",
+      "package_hash": "hash-1e2b354d2f9128b8f1c42cc12046f514292f95f7a40e3b3a9329a4f261a312d0",
+      "contract_hash": "hash-1e2b354d2f9128b8f1c42cc12046f514292f95f7a40e3b3a9329a4f261a312d0",
+      "entity_hash": "entity-contract-3d6147954a0736858068f8543dfe59355518250804b8e44550b5c2ab326067ca",
+      "state_uref": "uref-a07e3f07b27ca4bb523c83b381a051f86d125568f28f5ba75587ce59796027c5-007"
+    },
+    "settlement_vault": {
+      "deploy_hash": "5384b9638c2f31569bfd42d10d495a6d6d2487431a1c817c679e02cbec8d4c0a",
+      "package_hash": "hash-7601c68914e92175b498040af9ebc320544b20509d2b5b2339249ff967a0ecf6",
+      "contract_hash": "hash-7601c68914e92175b498040af9ebc320544b20509d2b5b2339249ff967a0ecf6",
+      "entity_hash": "entity-contract-438262684c07b458f0adf749fc340052c233b5793e12354a2c1241bba3b47441"
+    }
+  }
+}
