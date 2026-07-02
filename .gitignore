@@ -32,8 +32,6 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 fourotwo*
-DEMO*
-services/dashboard
-
 .claude
 README.md
+service
