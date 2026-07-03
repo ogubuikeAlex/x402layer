@@ -4,7 +4,16 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "env": [
+        "FACILITATOR_URL",
+        "KYX_REGISTRY_URL",
+        "NEXT_PUBLIC_KYX_REGISTRY_URL",
+        "CSPR_CLOUD_API_URL",
+        "DEMO_RECIPIENT_ACCOUNT_HASH",
+        "FOUROTWO_PRIVATE_KEY",
+        "FOUROTWO_AGENT_DID"
+      ]
     },
     "dev": {
       "cache": false,
