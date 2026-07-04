@@ -2,10 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
-/**
- * Scroll-reveal wrapper (design.md §6). Children start hidden and fade/slide up
- * when scrolled into view, with an optional stagger delay.
- */
+
 export function Reveal({
   children,
   delay = 0,

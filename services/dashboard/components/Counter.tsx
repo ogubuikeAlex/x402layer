@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-/** Count-up number with cubic ease-out when scrolled into view (design.md §6). */
 export function Counter({
   to,
   prefix = '',

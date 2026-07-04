@@ -2,10 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 
-/**
- * Custom cursor: an instant dot + a lerp-following ring (design.md §5).
- * Grows when hovering interactive elements. No-ops on touch devices.
- */
+
 export function CustomCursor() {
   const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
