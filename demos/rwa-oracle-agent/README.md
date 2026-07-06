@@ -25,12 +25,12 @@ Expected output (abridged):
     DID  did:fourotwo:casper:…
 [2] Fetching RWA data: GET http://localhost:5000/data/RE-NYC-001
 [3] 402 Payment Required received
-[4] Retried with payment — server responded 200
+[4] Retried with payment - server responded 200
 [5] Data received ✓
 [6] Signed settlement receipt
 [7] Local transaction ledger
     ✓ success  5000 CSPR → account-hash-merchant
-  ✓ Full x402 loop completed with zero manual signing.
+  ✓ Full layer402 loop completed with zero manual signing.
 ```
 
 ## Full stack with trust scoring
@@ -48,11 +48,11 @@ KYX_REGISTRY_URL=http://localhost:4002 node demos/rwa-oracle-agent/agent.mjs
 
 ## Env
 
-| Var | Default | Purpose |
-|---|---|---|
-| `MOCK_RWA_URL` | `http://localhost:5000` | mock merchant base URL |
-| `ASSET_ID` | `RE-NYC-001` | asset to fetch |
-| `FOUROTWO_PRIVATE_KEY` | generated | hex ed25519 secret (reuse the same DID) |
-| `KYX_REGISTRY_URL` | — | if set, the agent self-registers first |
-| `OPERATOR_EMAIL` | `oracle@fourotwo.dev` | operator email for registration |
-| `AGENT_DAILY_USD` / `AGENT_PER_REQ_USD` | `10` / `1` | spend budget limits |
+| Var                                     | Default                 | Purpose                                 |
+| --------------------------------------- | ----------------------- | --------------------------------------- |
+| `MOCK_RWA_URL`                          | `http://localhost:5000` | mock merchant base URL                  |
+| `ASSET_ID`                              | `RE-NYC-001`            | asset to fetch                          |
+| `FOUROTWO_PRIVATE_KEY`                  | generated               | hex ed25519 secret (reuse the same DID) |
+| `KYX_REGISTRY_URL`                      | -                       | if set, the agent self-registers first  |
+| `OPERATOR_EMAIL`                        | `oracle@fourotwo.dev`   | operator email for registration         |
+| `AGENT_DAILY_USD` / `AGENT_PER_REQ_USD` | `10` / `1`              | spend budget limits                     |

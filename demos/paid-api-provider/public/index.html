@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Meridian RWA Data API - Developer Docs</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◆</span> Meridian <span class="muted">RWA Data API</span>
+    </div>
+    <nav>
+      <a href="#quickstart">Quickstart</a>
+      <a href="#endpoints">Endpoints</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#earnings">Live settlements</a>
+    </nav>
+    <span class="pill">Powered by fourotwo · layer402</span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Institutional-grade RWA data, <span class="accent">paid per call</span>.</h1>
+      <p>
+        Real-time valuations and oracle-signed fundamentals for tokenized real-world assets.
+        No API keys, no invoices and no seats. Every request is settled on-chain in CSPR the
+        moment your agent makes it, using the <strong>layer402</strong> payment standard.
+      </p>
+      <div class="hero-actions">
+        <a class="btn" href="#quickstart">Get started</a>
+        <a class="btn ghost" href="#endpoints">API reference</a>
+      </div>
+    </section>
+
+    <section id="quickstart" class="block">
+      <details class="dropdown">
+        <summary>How paid requests work</summary>
+        <div class="dropdown-body">
+      <p>
+        Every data endpoint is gated by <strong>HTTP 402 Payment Required</strong>. You don't
+        pre-pay or hold a balance with us, instead your agent pays exactly for what it calls:
+      </p>
+      <ol class="steps">
+        <li>Call any data endpoint. With no payment attached you get a <code>402</code> plus a
+          <code>PAYMENT-REQUIRED</code> header describing the price.
+        </li>
+        <li>Your agent signs the payment (the <a href="https://www.npmjs.com/package/@fourotwo/agent-sdk"
+            target="_blank" rel="noreferrer"><code>@fourotwo/agent-sdk</code></a> does this automatically) and retries.
+        </li>
+        <li>We verify &amp; settle through the fourotwo facilitator and return the data with a signed receipt.</li>
+      </ol>
+
+      <h3>The easy way - the agent SDK</h3>
+      <pre><code>import { fourotwoAgent } from '@fourotwo/agent-sdk';
+
+const agent = new fourotwoAgent({
+  privateKeyHex: process.env.FOUROTWO_PRIVATE_KEY,
+  budget: { perRequestUsd: 5 },
+});
+
+// 402 is handled transparently - you just get the data
+const res  = await agent.fetch('<span id="base-a"></span>/api/assets/RE-NYC-001');
+const data = await res.json();</code></pre>
+
+      <h3>The raw way - any HTTP client</h3>
+      <pre><code># 1) unpaid → 402 + PAYMENT-REQUIRED header
+curl -i <span id="base-b"></span>/api/assets/RE-NYC-001
+
+# 2) retry with the signed headers your agent produced
+curl <span id="base-c"></span>/api/assets/RE-NYC-001 \
+  -H "PAYMENT-REQUIRED: &lt;encoded terms&gt;" \
+  -H "PAYMENT-SIGNATURE: &lt;signed envelope&gt;" \
+  -H "X-FOUROTWO-DID: did:fourotwo:casper:&lt;hash&gt;"</code></pre>
+        </div>
+      </details>
+    </section>
+
+    <section id="endpoints" class="block">
+      <h2>Endpoints</h2>
+
+      <div class="endpoint">
+        <div class="ep-head"><span class="method get">GET</span><code>/api/catalog</code><span
+            class="tag free">free</span></div>
+        <p>List available assets, prices, and this merchant's payout account.</p>
+      </div>
+
+      <div class="endpoint">
+        <div class="ep-head"><span class="method get">GET</span><code>/api/assets/:id</code><span
+            class="tag paid">paid</span></div>
+        <p>Oracle-signed data for one asset. Returns <code>402</code> until paid; on success returns
+          the dataset plus the settlement receipt. Price varies per asset - see below.</p>
+      </div>
+
+      <div class="endpoint">
+        <div class="ep-head"><span class="method get">GET</span><code>/api/earnings</code><span
+            class="tag free">free</span></div>
+        <p>This merchant's recent settlements - proof that calls are being paid &amp; credited.</p>
+      </div>
+    </section>
+
+    <section id="pricing" class="block">
+      <h2>Pricing</h2>
+      <p>Pay-per-call, in CSPR. No subscription.</p>
+      <table id="pricing-table">
+        <thead>
+          <tr>
+            <th>Asset</th>
+            <th>Type</th>
+            <th>ID</th>
+            <th class="right">Price / call</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="4" class="muted">loading catalog…</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="earnings" class="block">
+      <div class="earn-head">
+        <h2>Live settlements</h2>
+        <div class="earn-total">
+          credited: <strong id="earn-total">0 CSPR</strong>
+          <span class="muted" id="earn-count">· 0 settlements</span>
+        </div>
+      </div>
+      <div class="muted" id="merchant-account" style="margin: 4px 0 10px; font-size: 13px;"></div>
+      <p class="muted">Auto-refreshes every few seconds. Run the Atlas agent app against this API and watch payments
+        land here.</p>
+      <div id="earnings-list" class="earnings">
+        <div class="empty">No settlements yet. Waiting for a paying agent…</div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Meridian is a <strong>demo merchant</strong> built on fourotwo - the trust &amp; settlement layer for layer402 agent
+    payments.
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+
+</html>

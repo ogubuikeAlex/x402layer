@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Atlas - Autonomous RWA Research Agent</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">▲</span> Atlas <span class="muted">Research Agent</span></div>
+    <div class="wallet" id="wallet">
+      <div class="w-row"><span class="w-label">agent wallet</span><span class="w-bal" id="w-balance">…</span></div>
+      <div class="w-did" id="w-did">loading identity…</div>
+    </div>
+  </header>
+
+  <main>
+    <section class="intro">
+      <h1>Ask Atlas for market data.</h1>
+      <p>
+        Atlas is an autonomous agent that pulls oracle-signed real-world-asset data on demand.
+        The data lives behind a pay-per-call API - Atlas holds a wallet and settles each request
+        with <strong>layer402</strong>. When it hits a paywall, you'll be asked to approve the spend.
+      </p>
+    </section>
+
+    <section class="console">
+      <h2>Available datasets</h2>
+      <div id="catalog" class="cards">
+        <div class="empty">Connecting to the data provider…</div>
+      </div>
+    </section>
+
+    <section class="results" id="results-section" hidden>
+      <h2>Result</h2>
+      <div class="result-meta" id="result-meta"></div>
+      <pre id="result-json"></pre>
+    </section>
+  </main>
+
+  <!-- Blocking payment overlay (shown by the fetch interceptor on a 402) -->
+  <div class="overlay" id="overlay" hidden>
+    <div class="modal" id="modal">
+      <div class="modal-badge">402 · payment required</div>
+      <h3 id="m-title">This API requires payment</h3>
+      <p class="m-sub" id="m-sub">Atlas needs to pay the data provider to complete this request.</p>
+
+      <div class="breakdown">
+        <div class="bd-row"><span>Wallet balance</span><strong id="m-balance">-</strong></div>
+        <div class="bd-row deduct"><span>This request</span><strong id="m-amount">-</strong></div>
+        <div class="bd-divider"></div>
+        <div class="bd-row after"><span>Balance after</span><strong id="m-after">-</strong></div>
+      </div>
+
+      <dl class="m-detail">
+        <div>
+          <dt>Recipient</dt>
+          <dd id="m-recipient">-</dd>
+        </div>
+        <div>
+          <dt>Network</dt>
+          <dd id="m-network">-</dd>
+        </div>
+        <div>
+          <dt>Paying as</dt>
+          <dd id="m-did">-</dd>
+        </div>
+      </dl>
+
+      <div class="m-warn" id="m-warn" hidden></div>
+
+      <div class="m-actions">
+        <button class="btn ghost" id="m-cancel">Cancel</button>
+        <button class="btn pay" id="m-approve">Approve &amp; pay</button>
+      </div>
+      <div class="m-status" id="m-status" hidden></div>
+    </div>
+  </div>
+
+  <footer>
+    Atlas is a <strong>demo agent</strong> built on <code>@fourotwo/agent-sdk</code>. Signing &amp; settlement happen
+    server-side; the private key never enters the browser.
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+
+</html>

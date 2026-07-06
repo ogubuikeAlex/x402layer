@@ -1,11 +1,10 @@
 /**
  * DID derivation + parsing for fourotwo.
  *
- * DID format: `did:fourotwo:{network}:{address}` (PRD FR-1).
+ * DID format: `did:fourotwo:{network}:{address}`.
  *
- * This logic is shared (via `@fourotwo/types`) so the SDK (M2-T2) and the KYX
- * registry registration endpoint (M3-T2) derive byte-identical DIDs — the M3-T2
- * ticket explicitly calls out the drift risk if these diverge.
+ * This logic is shared (via `@fourotwo/types`) so the SDK and the KYX registry
+ * registration endpoint derive byte-identical DIDs.
  */
 
 import { blake2b } from '@noble/hashes/blake2b';

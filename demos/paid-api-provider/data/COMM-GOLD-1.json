@@ -1,0 +1,13 @@
+{
+  "id": "COMM-GOLD-1",
+  "name": "Allocated Gold Vault (LBMA)",
+  "kind": "Commodity",
+  "custodian": "Brink's Zurich",
+  "bars": 4200,
+  "fine_ounces": 1680000,
+  "spot_usd_per_oz": 2412.55,
+  "vault_valuation_usd": 4053084000,
+  "assay": "LBMA Good Delivery",
+  "audited_at": "2026-06-15",
+  "oracle_signed_at": "2026-07-03T00:00:00Z"
+}

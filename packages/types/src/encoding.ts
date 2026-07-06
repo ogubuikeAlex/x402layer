@@ -8,7 +8,7 @@
 
 import type { PaymentRequired } from './types.js';
 
-/** Field order is fixed and part of the signing contract — do not reorder. */
+/** Field order is fixed and part of the signing contract - do not reorder. */
 const ENVELOPE_FIELDS: (keyof PaymentRequired)[] = [
   'network',
   'token',

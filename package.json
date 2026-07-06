@@ -2,7 +2,7 @@
   "name": "fourotwo",
   "version": "0.1.0",
   "private": true,
-  "description": "fourotwo — x402-compatible payment facilitator and identity/trust registry for AI agents",
+  "description": "fourotwo - layer402-compatible payment facilitator and identity/trust registry for AI agents",
   "license": "MIT",
   "workspaces": [
     "packages/*",

@@ -22,7 +22,7 @@ export default async function WalletPage() {
         <h1 className="section-heading mb-4">Balances and funding.</h1>
         <p className="max-w-2xl font-serif text-[16px] leading-relaxed text-text-mid">
           Casper balances are read from CSPR.cloud. Programmatic faucet funding is not standardized,
-          so fourotwo links to the public testnet faucet and refreshes on reload.
+          so layer402 links to the public testnet faucet and refreshes on reload.
         </p>
       </header>
 

@@ -2,7 +2,7 @@
 #![cfg_attr(not(test), no_main)]
 //! fourotwo Casper smart contracts.
 //!
-//! Two contracts for the MVP (see `fourotwo-adr.md`):
+//! Two contracts:
 //! - [`kyx_registry`] — agent identity (DID) + trust score registry
 //! - [`settlement_vault`] — on-chain settlement records, validated against the registry
 //!

@@ -70,7 +70,7 @@ export function odraVarItemKey(fieldIndex: number): string {
 }
 
 /**
- * The stored CLValue is `List(U8)` wrapping the record bytes — the raw CLValue
+ * The stored CLValue is `List(U8)` wrapping the record bytes - the raw CLValue
  * `bytes` are `u32_le(len) ++ record_bytes`. Strip the length prefix.
  */
 export function unwrapStoredBytes(clValueBytesHex: string): Uint8Array {

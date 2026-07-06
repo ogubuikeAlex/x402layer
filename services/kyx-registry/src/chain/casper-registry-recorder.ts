@@ -1,12 +1,4 @@
-/**
- * Live `KyxRegistry` recorder (M3-T2 / M3-T7). Broadcasts `register_agent` and
- * `update_trust_score` contract calls to the deployed registry, signed with the
- * facilitator/service key.
- *
- * Mirrors the facilitator's `CasperVaultRecorder`. Like trust sync (AD-3) the
- * on-chain write is best-effort: any failure is reported (and never breaks the
- * registration / scoring response). RPC calls fall back across configured nodes.
- */
+
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
@@ -14,16 +6,12 @@ import type { PrivateKey } from 'casper-js-sdk';
 
 import { tryEndpoints } from './rpc-fallback.js';
 
-// casper-js-sdk ships a CommonJS bundle marked `__esModule` with no `default`
-// export. ESM named/default/namespace imports each break under one of tsx
-// (esbuild) or node — so load it via real `require`, which returns the full
-// module object identically in both runtimes. Types come from `import type`.
+
 const sdk = createRequire(import.meta.url)('casper-js-sdk') as typeof import('casper-js-sdk');
 
 export interface CasperRegistryRecorderOptions {
   /** Deployed KyxRegistry package hash, e.g. `hash-1e2b…` or bare hex. */
   registryPackageHash: string;
-  /** Service-account key material directly: PEM text, or base64-of-PEM (preferred on PaaS). */
   secretKey?: string;
   /** Path to the service-account secret key PEM (fallback to {@link secretKey}). */
   secretKeyPath?: string;
@@ -47,10 +35,10 @@ export interface RegisterAgentArgs {
 
 export interface UpdateTrustScoreArgs {
   did: string;
-  /** 0–100 trust score (contract stores u8). */
+  /** 0-100 trust score (contract stores u8). */
   score: number;
   tier: string;
-  /** Completion rate as a 0–1 fraction; broadcast as basis points (u32). */
+  /** Completion rate as a 0-1 fraction; broadcast as basis points (u32). */
   completionRate: number;
   transactionCount: number;
   totalDisputes: number;

@@ -2,9 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ============================================================
-   fourotwo design system — see /design.md
-   ============================================================ */
 :root {
   --bg: #060810;
   --bg2: #0b0f1a;

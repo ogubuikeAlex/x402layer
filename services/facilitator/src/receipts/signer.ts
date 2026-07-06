@@ -21,11 +21,7 @@ function receiptMessage(r: Omit<SettlementReceipt, 'facilitatorSignature'>): Uin
   return new TextEncoder().encode(canonical);
 }
 
-/**
- * Signs settlement receipts with the facilitator's ed25519 key (FR-6: every
- * settlement returns a signed receipt). If no key is configured, an ephemeral
- * key is generated (acceptable for local dev only).
- */
+/** If no signing key is configured, an ephemeral key is generated (acceptable for local dev only). */
 export class ReceiptSigner {
   private readonly secret: Uint8Array;
   readonly publicKeyHex: string;

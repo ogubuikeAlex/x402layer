@@ -14,12 +14,12 @@ export default function DocsPage() {
       <header>
         <div className="section-label mb-4">documentation</div>
         <h1 className="section-heading mb-4">
-          Build on fourotwo.
+          Build on layer402.
           <br />
           Pay, accept, and trust.
         </h1>
         <p className="max-w-xl font-serif text-[16px] font-light leading-relaxed text-text-mid">
-          Everything you need to integrate fourotwo into your own app — pay for APIs from an agent,
+          Everything you need to integrate layer402 into your own app - pay for APIs from an agent,
           charge for your own API, and read portable agent trust. Plus a full HTTP API reference.
         </p>
       </header>

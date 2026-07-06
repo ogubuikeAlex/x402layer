@@ -1,13 +1,3 @@
-/**
- * Reads agent trust directly from the on-chain `KyxRegistry` contract (M3 / the
- * "on-chain trust reads" path). Trust scores are written on-chain by
- * `update_trust_score`; here we read them back via the node's
- * `state_get_dictionary_item` RPC against Odra's `"state"` dictionary.
- *
- * This wraps a fallback {@link TrustClient} (the HTTP registry or the stub): if
- * the contract has no record for the DID, or any read fails, we delegate — so
- * enabling on-chain reads never makes /verify worse than the off-chain path.
- */
 import type { AgentTrustSummary, TrustTier } from '@fourotwo/types';
 
 import type { TrustClient } from './client.js';
@@ -21,16 +11,8 @@ import {
 import { tryEndpoints } from '../chains/rpc-fallback.js';
 
 export interface OnChainTrustOptions {
-  /** Casper node JSON-RPC endpoints, tried in order until one succeeds. */
   nodeRpcs: string[];
-  /**
-   * Seed URef of the KyxRegistry's Odra `"state"` dictionary
-   * (`uref-…-NNN`). Read it once from the deployed contract's named keys
-   * (cspr.live contract page → Named Keys → `state`, or `casper-client
-   * get-entity` on the contract). Without it, on-chain reads are disabled.
-   */
   stateUref: string;
-  /** Delegate used when the agent/score isn't on-chain or a read fails. */
   fallback: TrustClient;
   fetchImpl?: typeof fetch;
 }
@@ -49,7 +31,7 @@ export class OnChainTrustClient implements TrustClient {
         stateRoot,
         odraMappingItemKey(KYX_FIELD.agents, did),
       );
-      // Not registered on-chain — defer entirely to the fallback path.
+      // Not registered on-chain - defer entirely to the fallback path.
       if (!agentBytes) return this.opts.fallback.getTrustSummary(did);
 
       const agent = parseAgentRecord(agentBytes);
@@ -59,7 +41,7 @@ export class OnChainTrustClient implements TrustClient {
       );
 
       if (!scoreBytes) {
-        // Registered but never scored: report pending, like the M1 stub.
+        // Registered but never scored: report pending.
         return {
           did,
           trust_score: null,
@@ -79,12 +61,11 @@ export class OnChainTrustClient implements TrustClient {
         trust_tier: (score.tier || null) as TrustTier | null,
         operator_kyc: agent.kycVerified,
         transaction_count: Number(score.totalTransactions),
-        // Contract stores basis points (0–10000); summary uses a 0–1 fraction.
+        // Contract stores basis points (0-10000); summary uses a 0-1 fraction.
         completion_rate: score.completionRateBps / 10_000,
         flags: [],
       };
     } catch {
-      // Any RPC/parse failure → fall back rather than fail verification.
       return this.opts.fallback.getTrustSummary(did);
     }
   }

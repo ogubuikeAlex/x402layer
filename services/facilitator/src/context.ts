@@ -28,12 +28,11 @@ export function buildContext(
   config: FacilitatorConfig,
   overrides: Partial<AppContext> = {},
 ): AppContext {
-  // Off-chain trust path (HTTP registry, else M1 stub).
   const offChainTrust: TrustClient = config.kyxRegistryUrl
     ? new HttpTrustClient(config.kyxRegistryUrl)
     : new StubTrustClient();
   // Prefer on-chain reads when the KyxRegistry contract + its `state` dict URef
-  // are configured; the off-chain client remains the fallback (M3 / on-chain reads).
+  // are configured; the off-chain client remains the fallback.
   const trustClient: TrustClient =
     config.casper.kyxRegistryContractHash && config.casper.kyxRegistryStateUref
       ? new OnChainTrustClient({
@@ -46,9 +45,14 @@ export function buildContext(
   const settlementReporter: SettlementReporter = config.kyxRegistryUrl
     ? new HttpSettlementReporter(config.kyxRegistryUrl)
     : new NoopSettlementReporter();
+  if (!config.kyxRegistryUrl) {
+    console.warn(
+      '[kyx] KYX_REGISTRY_URL not set - settlements will NOT be reported to the registry (no dashboard history/volume)',
+    );
+  }
 
-  // Live on-chain settlement record when the vault hash + service key are wired
-  // (M1-T9); otherwise log-only so the gap stays observable.
+  // Live on-chain settlement record when the vault hash + service key are wired;
+  // otherwise log-only so the gap stays observable.
   const facilitatorKey = config.casper.facilitatorSecretKey ?? config.casper.facilitatorSecretKeyPath;
   const vaultRecorder: VaultRecorder =
     config.casper.settlementVaultContractHash && facilitatorKey

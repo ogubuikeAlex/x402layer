@@ -1,0 +1,11 @@
+{
+  "name": "@fourotwo-demo/agent-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Atlas - reference agent app with a global 402 fetch interceptor, paying via @fourotwo/agent-sdk",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs"
+  }
+}

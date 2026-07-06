@@ -5,10 +5,6 @@ import type { ChainAdapter } from './types.js';
 import { CasperAdapter, CsprCloudCasperClient } from './casper.js';
 import { BaseAdapter, JsonRpcBaseClient } from './base.js';
 
-/**
- * Builds the set of chain adapters from config. The facilitator core resolves an
- * adapter per request by network and never imports chain code directly (AD-2).
- */
 export class AdapterRegistry {
   private readonly adapters = new Map<ChainNetwork, ChainAdapter>();
 

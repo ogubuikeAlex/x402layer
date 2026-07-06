@@ -2,7 +2,7 @@
   "name": "@fourotwo/agent-sdk",
   "version": "1.0.0",
   "private": false,
-  "description": "fourotwo TypeScript SDK for automatic x402 payment handling",
+  "description": "fourotwo TypeScript SDK for automatic layer402 payment handling",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

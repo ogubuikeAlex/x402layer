@@ -1,7 +1,4 @@
-/**
- * In-memory replay cache (FR-5 / M1-T8). A payment is keyed by network + nonce.
- * 120s TTL minimum; no Redis needed for MVP.
- */
+/** A payment is keyed by network + nonce; the 120s TTL is the protocol minimum. */
 export class ReplayCache {
   private readonly seen = new Map<string, number>();
 

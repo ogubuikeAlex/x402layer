@@ -52,7 +52,7 @@ export default function PlaygroundPage() {
           Watch it settle.
         </h1>
         <p className="max-w-xl font-serif text-[16px] font-light leading-relaxed text-text-mid">
-          Signs a real Casper x402 payment and runs it through the live facilitator —{' '}
+          Signs a real Casper x402 payment and runs it through the live facilitator -{' '}
           <span className="text-text">/verify → /settle</span>. A step-by-step trace of the
           verify → settle round trip and the signed receipt it returns.
         </p>
@@ -77,9 +77,8 @@ export default function PlaygroundPage() {
         </button>
         {result && !result.error && (
           <span
-            className={`ml-auto flex items-center gap-2 text-[10px] uppercase tracking-wide2 ${
-              result.settled ? 'text-accent3' : 'text-accent-warn'
-            }`}
+            className={`ml-auto flex items-center gap-2 text-[10px] uppercase tracking-wide2 ${result.settled ? 'text-accent3' : 'text-accent-warn'
+              }`}
           >
             <span
               className="h-1.5 w-1.5 rounded-full"
@@ -94,7 +93,7 @@ export default function PlaygroundPage() {
 
       {result?.error && (
         <div className="border border-[rgba(255,60,90,0.3)] bg-[rgba(255,60,90,0.08)] p-4 text-sm text-accent2">
-          {result.error} — is the facilitator running on the configured URL?
+          {result.error} : is the facilitator running on the configured URL?
         </div>
       )}
 
@@ -110,13 +109,12 @@ export default function PlaygroundPage() {
               <div className="flex items-center justify-between border-b border-hairline bg-black/30 px-4 py-2.5">
                 <span className="text-[12px] tracking-wide text-text">{step.label}</span>
                 <span
-                  className={`px-2.5 py-1 text-[9px] uppercase tracking-wide2 ${
-                    step.ok
+                  className={`px-2.5 py-1 text-[9px] uppercase tracking-wide2 ${step.ok
                       ? 'border border-[rgba(127,255,110,0.2)] bg-[rgba(127,255,110,0.1)] text-accent3'
                       : 'border border-[rgba(255,60,90,0.3)] bg-[rgba(255,60,90,0.15)] text-accent2'
-                  }`}
+                    }`}
                 >
-                  {step.status ?? '—'} {step.ok ? 'ok' : 'fail'}
+                  {step.status ?? '-'} {step.ok ? 'ok' : 'fail'}
                 </span>
               </div>
               <pre className="overflow-x-auto px-4 py-3 text-[11px] leading-relaxed text-text-mid">

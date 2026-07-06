@@ -1,10 +1,4 @@
-/**
- * RPC fallback: try a list of endpoints in order, returning the first success.
- *
- * A single Casper node can be down, rate-limited, or lagging. Rather than
- * surfacing that as an error to the caller, we try the next configured endpoint
- * before giving up — only the last endpoint's failure propagates.
- */
+
 export async function tryEndpoints<T>(
   endpoints: readonly string[],
   attempt: (endpoint: string) => Promise<T>,

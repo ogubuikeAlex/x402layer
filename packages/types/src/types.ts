@@ -1,14 +1,9 @@
-/**
- * Shared data models for fourotwo. Mirrors the product spec (Section 7) so the
- * facilitator, SDK, KYX registry, and dashboard never drift on shapes.
- */
-
 export type ChainNetwork = 'base' | 'casper' | 'solana' | 'stellar' | 'polygon';
 export type TrustTier = 'ELITE' | 'VERIFIED' | 'STANDARD' | 'RESTRICTED' | 'BLOCKED';
 export type SettlementMode = 'direct' | 'batch' | 'channel' | 'l2';
 export type VolumeTier = 'MICRO' | 'LOW' | 'MEDIUM' | 'HIGH' | 'ENTERPRISE';
 
-/** Networks that have a `ChainAdapter` implementation in the MVP facilitator. */
+/** Networks that have a `ChainAdapter` implementation in the facilitator. */
 export type SupportedNetwork = Extract<ChainNetwork, 'casper' | 'base'>;
 
 export interface AgentDid {
@@ -24,11 +19,11 @@ export interface AgentDid {
 }
 
 export interface TrustDimensions {
-  completionRate: number; // 0–1
-  behavioralConsistency: number; // 0–1
+  completionRate: number; // 0-1
+  behavioralConsistency: number; // 0-1
   operatorVerified: boolean;
   volumeTier: VolumeTier;
-  disputeRate: number; // 0–1
+  disputeRate: number; // 0-1
 }
 
 export interface TrustHistory {
@@ -42,7 +37,7 @@ export type TrustFlag = string;
 
 export interface TrustScore {
   did: string;
-  score: number; // 0–100
+  score: number; // 0-100
   tier: TrustTier;
   dimensions: TrustDimensions;
   history: TrustHistory;
@@ -66,7 +61,7 @@ export interface SettlementReceipt {
 }
 
 /* ---------------------------------------------------------------------------
- * x402 payment envelopes
+ * layer402 payment envelopes
  * ------------------------------------------------------------------------- */
 
 /**
@@ -105,7 +100,7 @@ export interface PaymentPayload {
 }
 
 /* ---------------------------------------------------------------------------
- * Facilitator API contracts (product spec Section 8)
+ * Facilitator API contracts
  * ------------------------------------------------------------------------- */
 
 export interface VerifyRequest {
@@ -122,7 +117,7 @@ export interface AgentTrustSummary {
   transaction_count: number;
   completion_rate: number;
   flags: TrustFlag[];
-  /** True when the trust scoring service hasn't produced a score yet (M1 stub). */
+  /** True when the trust scoring service hasn't produced a score yet. */
   trust_pending?: boolean;
   /** True when payment verification continued while the KYX registry was unavailable. */
   trust_unavailable?: boolean;
@@ -166,7 +161,7 @@ export interface SettleResponse {
   estimated_confirmation_ms: number;
   receipt: SettlementReceipt;
   vault_recorded?: boolean;
-  /** Deploy/transaction hash of the on-chain SettlementVault record, when broadcast (M1-T9). */
+  /** Deploy/transaction hash of the on-chain SettlementVault record, when broadcast. */
   vault_tx?: string;
   warning?: string;
 }

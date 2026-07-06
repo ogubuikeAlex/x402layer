@@ -1,0 +1,14 @@
+{
+  "id": "RE-NYC-001",
+  "name": "Manhattan Class-A Office Tower",
+  "kind": "Real estate",
+  "location": "Midtown, New York, NY",
+  "valuation_usd": 412500000,
+  "cap_rate": 0.0465,
+  "occupancy": 0.913,
+  "noi_usd": 19181250,
+  "last_appraisal": "2026-04-30",
+  "tokenized_supply": 412500,
+  "price_per_token_usd": 1000,
+  "oracle_signed_at": "2026-07-03T00:00:00Z"
+}

@@ -9,11 +9,6 @@ export interface SettleOutcome {
   body: SettleResponse | { error: string; detail: string };
 }
 
-/**
- * Core /settle logic (FR-6, direct mode — M1-T9). Settles exactly the payment that
- * was verified, records it in the SettlementVault (best-effort), and returns a
- * signed receipt.
- */
 export async function runSettle(ctx: AppContext, req: SettleRequest): Promise<SettleOutcome> {
   if (!req || typeof req.verification_id !== 'string') {
     return { status: 400, body: { error: 'MALFORMED_REQUEST', detail: 'verification_id required' } };
@@ -58,8 +53,7 @@ export async function runSettle(ctx: AppContext, req: SettleRequest): Promise<Se
     state = result.state === 'confirmed' ? 'confirmed' : 'pending';
   } catch (err) {
     if (err instanceof SettlementUnconfiguredError) {
-      // Live broadcaster not wired in this environment (M1-T9). Surface clearly
-      // rather than fabricating a tx hash.
+      // No live broadcaster configured; surface that clearly rather than fabricating a tx hash.
       state = 'unconfigured';
     } else {
       return {
@@ -72,7 +66,7 @@ export async function runSettle(ctx: AppContext, req: SettleRequest): Promise<Se
   const sid = settlementId();
   const scoreAtSettlement = trustScore ?? 0;
 
-  // Best-effort on-chain record (M1-T9). Failure does not block the response.
+  // Best-effort on-chain record; failure does not block the response.
   const vault = await ctx.vaultRecorder.record({
     did: payload.agentDid,
     amount: payload.paymentRequired.amount,
@@ -104,7 +98,9 @@ export async function runSettle(ctx: AppContext, req: SettleRequest): Promise<Se
       receipt,
       status: state === 'confirmed' ? 'confirmed' : 'pending',
     })
-    .catch(() => undefined);
+    .catch((err: Error) =>
+      console.error(`[kyx] settlement report failed for ${sid} (${payload.agentDid}): ${err.message}`),
+    );
 
   return {
     status: 200,

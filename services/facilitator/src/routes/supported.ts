@@ -3,16 +3,12 @@ import type { SupportedResponse } from '@fourotwo/types';
 
 import type { AppContext } from '../context.js';
 
-/**
- * GET /supported — standard x402 v2 capability advertisement (M1-T10).
- * `kyx_scoring` is declared as a feature; trust scoring goes live in M3.
- */
 export function registerSupportedRoute(app: FastifyInstance, ctx: AppContext): void {
   app.get('/supported', async () => {
     const networks = ctx.adapters.supported();
     const body: SupportedResponse = {
       facilitator: 'fourotwo',
-      version: 'x402-v2',
+      version: 'layer402-v2',
       networks: networks.map((network) =>
         network === 'casper'
           ? { network, tokens: ['CSPR', 'USDC'] }

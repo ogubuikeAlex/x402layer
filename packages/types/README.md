@@ -1,18 +1,18 @@
 # @fourotwo/types
 
 ```
-  /$$$$$$                               /$$$$$$    /$$                            
- /$$__  $$                             /$$__  $$  | $$                            
-| $$  \__//$$$$$$  /$$   /$$  /$$$$$$ | $$  \ $$ /$$$$$$   /$$  /$$  /$$  /$$$$$$ 
+  /$$$$$$                               /$$$$$$    /$$
+ /$$__  $$                             /$$__  $$  | $$
+| $$  \__//$$$$$$  /$$   /$$  /$$$$$$ | $$  \ $$ /$$$$$$   /$$  /$$  /$$  /$$$$$$
 | $$$$   /$$__  $$| $$  | $$ /$$__  $$| $$  | $$|_  $$_/  | $$ | $$ | $$ /$$__  $$
 | $$_/  | $$  \ $$| $$  | $$| $$  \__/| $$  | $$  | $$    | $$ | $$ | $$| $$  \ $$
 | $$    | $$  | $$| $$  | $$| $$      | $$  | $$  | $$ /$$| $$ | $$ | $$| $$  | $$
 | $$    |  $$$$$$/|  $$$$$$/| $$      |  $$$$$$/  |  $$$$/|  $$$$$/$$$$/|  $$$$$$/
-|__/     \______/  \______/ |__/       \______/    \___/   \_____/\___/  \______/ 
-                                                                                      
+|__/     \______/  \______/ |__/       \______/    \___/   \_____/\___/  \______/
+
 ```
 
-> Shared types, DID derivation, and the x402 payment-envelope codec for [fourotwo](https://x402layer-dashboard.vercel.app/docs).
+> Shared types, DID derivation, and the layer402 payment-envelope codec for [fourotwo](https://layer402layer-dashboard.vercel.app/docs).
 
 The single source of truth for the shapes and byte formats used across the
 fourotwo facilitator, registry, SDK, and dashboard. Because every component
@@ -34,9 +34,9 @@ A fourotwo agent DID is `did:fourotwo:{network}:{address}`, derived deterministi
 from a public key (Casper → blake2b account hash, Base → EVM address).
 
 ```ts
-import { deriveDid, deriveAddress, parseDid } from '@fourotwo/types';
+import { deriveDid, deriveAddress, parseDid } from "@fourotwo/types";
 
-const did = deriveDid('casper', publicKeyHex);
+const did = deriveDid("casper", publicKeyHex);
 // did:fourotwo:casper:3d5de8c609159a0954e773dd686fb7724428316cb30e00bdc...
 
 const { network, address } = parseDid(did);
@@ -49,30 +49,34 @@ that get signed. Use `encodeEnvelope` when issuing a 402; the signer and verifie
 both sign `canonicalPaymentBytes` so signatures always line up.
 
 ```ts
-import { encodeEnvelope, decodeEnvelope, canonicalPaymentBytes } from '@fourotwo/types';
+import {
+  encodeEnvelope,
+  decodeEnvelope,
+  canonicalPaymentBytes,
+} from "@fourotwo/types";
 
 const header = encodeEnvelope({
-  amount: '5000',                 // smallest unit (motes / wei)
-  recipient: 'account-hash-...',
-  network: 'casper',
-  token: 'CSPR',
+  amount: "5000", // smallest unit (motes / wei)
+  recipient: "account-hash-...",
+  network: "casper",
+  token: "CSPR",
   expiry: Math.floor(Date.now() / 1000) + 600,
-  nonce: 'unique-per-request',    // replay protection
-  facilitator: 'https://fourotwo-facilitator.onrender.com',
-  minTrustScore: 40,              // optional gating
+  nonce: "unique-per-request", // replay protection
+  facilitator: "https://fourotwo-facilitator.onrender.com",
+  minTrustScore: 40, // optional gating
 });
 
-res.writeHead(402, { 'PAYMENT-REQUIRED': header });
+res.writeHead(402, { "PAYMENT-REQUIRED": header });
 ```
 
 ## What's exported
 
-- **DID / addresses** — `deriveDid`, `deriveAddress`, `formatDid`, `parseDid`,
+- **DID / addresses** - `deriveDid`, `deriveAddress`, `formatDid`, `parseDid`,
   `isValidDid`, `casperAccountHash`, `baseAddress`, `DID_METHOD`
-- **Envelope codec** — `encodeEnvelope`, `decodeEnvelope`, `canonicalPaymentBytes`,
+- **Envelope codec** - `encodeEnvelope`, `decodeEnvelope`, `canonicalPaymentBytes`,
   `canonicalPaymentMessage`
-- **Trust helpers** — `tierForScore`, `TIER_COLOR`
-- **Types** — `PaymentRequired`, `PaymentPayload`, `VerifyRequest`, `VerifyResponse`,
+- **Trust helpers** - `tierForScore`, `TIER_COLOR`
+- **Types** - `PaymentRequired`, `PaymentPayload`, `VerifyRequest`, `VerifyResponse`,
   `SettleRequest`, `SettleResponse`, `SettlementReceipt`, `SupportedResponse`,
   `TrustScore`, `TrustTier`, `TrustDimensions`, `ChainNetwork`, `SettlementMode`,
   and more.
@@ -83,9 +87,8 @@ Copyright (c) 2026. All rights reserved.
 
 This repository is publicly visible for educational and review purposes only. By viewing this repository, you agree to the following terms:
 
-* **No Duplication:** You may not copy, duplicate, reproduce, or clone this source code, in whole or in part, outside of the GitHub platform.
-* **No Modification or Distribution:** You may not modify, distribute, publish, sub-license, or sell this code under any circumstances.
-* **GitHub Platform Exception:** In accordance with the GitHub Terms of Service, you are permitted to view and fork this repository strictly within GitHub for your own personal use. 
+- **No Duplication:** You may not copy, duplicate, reproduce, or clone this source code, in whole or in part, outside of the GitHub platform.
+- **No Modification or Distribution:** You may not modify, distribute, publish, sub-license, or sell this code under any circumstances.
+- **GitHub Platform Exception:** In accordance with the GitHub Terms of Service, you are permitted to view and fork this repository strictly within GitHub for your own personal use.
 
 Any unauthorized copying or use of this software constitutes copyright infringement.
-

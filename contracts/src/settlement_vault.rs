@@ -1,15 +1,15 @@
-//! SettlementVault — on-chain record of settled x402 payments (Casper / Odra).
+//! SettlementVault — on-chain record of settled layer402 payments (Casper / Odra).
 //!
-//! Ticket M1-T3. Records each settlement and cross-checks that the paying agent's
+//! Records each settlement and cross-checks that the paying agent's
 //! DID exists in the `KyxRegistry` before recording. This is the on-chain artifact
-//! the dashboard transaction history (M3-T11) and audit trail read from.
+//! the dashboard transaction history and audit trail read from.
 
 use crate::kyx_registry::KyxRegistryContractRef;
 use odra::prelude::*;
 use odra::ContractRef;
 
-/// On-chain settlement record. Mirrors the off-chain `SettlementReceipt`
-/// (product spec Section 7) — the fields needed for an auditable on-chain trail.
+/// On-chain settlement record. Mirrors the off-chain `SettlementReceipt` —
+/// the fields needed for an auditable on-chain trail.
 #[odra::odra_type]
 pub struct SettlementRecord {
     pub settlement_id: String,
@@ -53,8 +53,8 @@ pub struct SettlementVault {
 
 #[odra::module]
 impl SettlementVault {
-    /// Initialize with the KyxRegistry address (M1-T4 deploy wires this) and the
-    /// facilitator service account allowed to record settlements.
+    /// Initialize with the KyxRegistry address and the facilitator service
+    /// account allowed to record settlements.
     pub fn init(&mut self, registry: Address, facilitator: Address) {
         self.admin.set(self.env().caller());
         self.registry.set(registry);
@@ -104,7 +104,6 @@ impl SettlementVault {
         });
     }
 
-    /// Read a settlement by id. Returns `None` if not found.
     pub fn get_settlement(&self, settlement_id: String) -> Option<SettlementRecord> {
         self.settlements.get(&settlement_id)
     }

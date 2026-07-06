@@ -52,10 +52,6 @@ function makeFail(
   return { valid: false, reason, detail };
 }
 
-/**
- * Core /verify logic (FR-5). Pure and unit-testable — the route is a thin wrapper.
- * Verification order follows the product spec Section 6.1.
- */
 export async function runVerify(ctx: AppContext, req: VerifyRequest): Promise<VerifyOutcome> {
   // (0) Basic request shape
   if (!req || typeof req.payment_required !== 'string' || typeof req.payment_signature !== 'string') {
@@ -80,7 +76,6 @@ export async function runVerify(ctx: AppContext, req: VerifyRequest): Promise<Ve
     return fail('MALFORMED_PAYLOAD', 'agent_did network does not match envelope network');
   }
 
-  // Resolve adapter for the network (AD-2)
   const adapter = ctx.adapters.get(envelope.network);
   if (!adapter) {
     return fail('UNSUPPORTED_NETWORK', `No adapter for network "${envelope.network}"`);
@@ -150,7 +145,7 @@ export async function runVerify(ctx: AppContext, req: VerifyRequest): Promise<Ve
     if (!trust.flags.includes('balance_check_skipped')) trust.flags.push('balance_check_skipped');
   }
 
-  // Success — record replay + verification, return enriched result
+  // Success - record replay + verification, return enriched result
   ctx.replayCache.record(envelope.network, envelope.nonce);
   const vid = verificationId();
   ctx.verifications.put({ verificationId: vid, payload, trustScore: trust.trust_score });
@@ -160,7 +155,7 @@ export async function runVerify(ctx: AppContext, req: VerifyRequest): Promise<Ve
     body: {
       valid: true,
       agent_trust: trust,
-      settlement_recommendation: 'direct', // M1: direct mode only
+      settlement_recommendation: 'direct',
       verification_id: vid,
     },
   };

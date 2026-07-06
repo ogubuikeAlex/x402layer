@@ -47,7 +47,7 @@ function buildTestContext(client = mockCasperClient()): AppContext {
   const adapters = new AdapterRegistry([new CasperAdapter(client)]);
   // Inject a deterministic trust client so the round-trip tests don't depend on
   // ambient .env (which may enable the on-chain/HTTP trust clients that make
-  // network calls). Matches the M1 stub behaviour these tests assert.
+  // network calls).
   return buildContext(config, { adapters, trustClient: new StubTrustClient() });
 }
 
@@ -75,7 +75,7 @@ function signedRequest(envelope: PaymentRequired): VerifyRequest {
   };
 }
 
-describe('verify → settle round trip (M1-T8 / M1-T9)', () => {
+describe('verify → settle round trip', () => {
   let ctx: AppContext;
   beforeEach(() => {
     ctx = buildTestContext();
@@ -88,7 +88,6 @@ describe('verify → settle round trip (M1-T8 / M1-T9)', () => {
     const body = out.body as VerifySuccess;
     expect(body.verification_id).toMatch(/^vrf_/);
     expect(body.settlement_recommendation).toBe('direct');
-    // M1: trust scoring not live yet
     expect(body.agent_trust.trust_pending).toBe(true);
   });
 

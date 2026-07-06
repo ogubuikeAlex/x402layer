@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// RWA Oracle Agent — the first fourotwo SDK consumer (ticket M2-T7).
+// RWA Oracle Agent - a reference fourotwo SDK consumer.
 //
-// Drives the full x402 loop end-to-end with ZERO manual signing:
+// Drives the full layer402 loop end-to-end with ZERO manual signing:
 //   fetch mock RWA API → 402 → SDK signs + attaches DID → retry → verify →
 //   settle → data returned. Every step is logged for demo narration.
 //
@@ -14,8 +14,8 @@
 //   FOUROTWO_PRIVATE_KEY  hex ed25519 secret; generated if unset
 //   KYX_REGISTRY_URL    if set, the agent self-registers before transacting
 //   OPERATOR_EMAIL      default oracle@fourotwo.dev (used for registration)
-//   AGENT_DAILY_USD     default 10   (spend budget — daily)
-//   AGENT_PER_REQ_USD   default 1    (spend budget — per request)
+//   AGENT_DAILY_USD     default 10   (spend budget - daily)
+//   AGENT_PER_REQ_USD   default 1    (spend budget - per request)
 
 import { fourotwoAgent, generateCasperKeypair, keypairFromPrivateKey } from '@fourotwo/agent-sdk';
 
@@ -36,20 +36,19 @@ let stepNo = 0;
 const step = (msg) => console.log(`${c.cyan(`[${++stepNo}]`)} ${msg}`);
 const info = (msg) => console.log(`    ${c.dim(msg)}`);
 
-/** Resolve (or generate) the agent keypair. */
 function loadKeypair() {
   if (process.env.FOUROTWO_PRIVATE_KEY) {
     return keypairFromPrivateKey(process.env.FOUROTWO_PRIVATE_KEY.trim());
   }
   const kp = generateCasperKeypair();
-  info(`generated ephemeral key — set FOUROTWO_PRIVATE_KEY=${kp.privateKeyHex} to reuse`);
+  info(`generated ephemeral key - set FOUROTWO_PRIVATE_KEY=${kp.privateKeyHex} to reuse`);
   return kp;
 }
 
 /** Optionally register the agent in the KYX registry (verify operator → register). */
 async function registerIfPossible(keypair) {
   if (!KYX_REGISTRY_URL) {
-    info('KYX_REGISTRY_URL unset — relying on the facilitator trust stub (agent not registered)');
+    info('KYX_REGISTRY_URL unset - relying on the facilitator trust stub (agent not registered)');
     return;
   }
   step(`Registering with KYX registry at ${KYX_REGISTRY_URL}`);
@@ -80,7 +79,7 @@ async function registerIfPossible(keypair) {
 }
 
 async function main() {
-  console.log(c.bold('\n  RWA Oracle Agent — fourotwo SDK demo\n'));
+  console.log(c.bold('\n  RWA Oracle Agent - fourotwo SDK demo\n'));
 
   const keypair = loadKeypair();
   step(`Agent identity`);
@@ -97,7 +96,7 @@ async function main() {
       step('402 Payment Required received');
       info('PAYMENT-REQUIRED envelope present → SDK will sign & retry automatically');
     } else if (signed) {
-      step(`Retried with payment — server responded ${res.status}`);
+      step(`Retried with payment - server responded ${res.status}`);
       info('SDK signed the envelope, attached the DID, merchant ran /verify + /settle');
     }
     return res;
@@ -153,7 +152,7 @@ async function main() {
     info(`${mark} ${entry.status}  ${entry.amount} ${entry.token} → ${entry.recipient}`);
   }
 
-  console.log(c.green(`\n  ✓ Full x402 loop completed with zero manual signing.\n`));
+  console.log(c.green(`\n  ✓ Full layer402 loop completed with zero manual signing.\n`));
 }
 
 main().catch((err) => {

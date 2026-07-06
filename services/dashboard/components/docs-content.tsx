@@ -29,15 +29,15 @@ export const TABS: DocTab[] = [
   {
     id: 'overview',
     label: 'Overview',
-    blurb: 'What fourotwo is and how the pieces fit.',
+    blurb: 'What layer402 is and how the pieces fit.',
     status: 'mvp',
     content: (
       <>
         <DocH2>The trust & settlement layer for x402</DocH2>
         <Prose>
-          x402 solved the mechanics of agent-to-API payments — but every payment is effectively
+          x402 solved the mechanics of agent-to-API payments - but every payment is effectively
           anonymous, settlement is fragmented and costly at scale, and funding an agent wallet is a
-          UX nightmare. fourotwo is the compliance and intelligence layer on top of x402: it verifies
+          UX nightmare. layer402 is the compliance and intelligence layer on top of x402: it verifies
           and settles payments <em>and</em> attaches a verifiable trust score to every transaction.
         </Prose>
 
@@ -82,10 +82,10 @@ export const TABS: DocTab[] = [
           lang="ascii"
           code={`  Agent (Client SDK) ──HTTP──► API Provider (server middleware)
           │                          │
-          │ signs w/ DID             │ points to fourotwo facilitator
+          │ signs w/ DID             │ points to layer402 facilitator
           ▼                          ▼
    ┌───────────────────────────────────────────┐
-   │              fourotwo facilitator                                   │
+   │              layer402 facilitator                                   │
    │  /verify  /settle  /supported  /trust                              │
    │     │           │                                                 │
    │     └─ trust ───┴─ chain adapter (AD-2) ───┼──► Casper | Base
@@ -119,7 +119,7 @@ export const TABS: DocTab[] = [
         <Endpoint method="POST" path="/verify" status="mvp">
           Verify a payment payload before settling. Servers call this on every 402 retry.
         </Endpoint>
-        <Prose>Request body — {code('payment_signature')} is base64 of {code('{ payer, signature }')}:</Prose>
+        <Prose>Request body - {code('payment_signature')} is base64 of {code('{ payer, signature }')}:</Prose>
         <CodeBlock
           lang="json"
           code={`{
@@ -232,15 +232,15 @@ did:fourotwo:casper:3d5de8c609159a0954e773dd686fb7724428316cb30e00bdc...`}
           registry derive byte-identical DIDs (no drift).
         </Callout>
 
-        <DocH3>Trust score — MVP (3 of 5 dimensions)</DocH3>
+        <DocH3>Trust score - MVP (3 of 5 dimensions)</DocH3>
         <DocTable
           headers={['Dimension', 'MVP weight', 'Status']}
           rows={[
             ['Payment completion rate', '50%', 'mvp'],
             ['Operator verification (KYC)', '30%', 'mvp'],
             ['Volume tier', '20%', 'mvp'],
-            ['Behavioral consistency', '— (25% in v2)', 'upcoming'],
-            ['Dispute rate', '— (10% in v2)', 'upcoming'],
+            ['Behavioral consistency', '- (25% in v2)', 'upcoming'],
+            ['Dispute rate', '- (10% in v2)', 'upcoming'],
           ]}
         />
         <CodeBlock
@@ -248,24 +248,24 @@ did:fourotwo:casper:3d5de8c609159a0954e773dd686fb7724428316cb30e00bdc...`}
           code={`// MVP scorer (AD-7)
 score = 0.5 * completionRate
       + 0.3 * (operatorVerified ? 1 : 0)
-      + 0.2 * volumeTierScore;   // 0–100`}
+      + 0.2 * volumeTierScore;   // 0-100`}
         />
 
         <DocH3>Trust tiers</DocH3>
         <DocTable
           headers={['Score', 'Tier', 'Meaning']}
           rows={[
-            ['90–100', <span className="text-accent3">ELITE</span>, 'Long track record, KYC, ~0 disputes'],
-            ['70–89', <span className="text-accent3">VERIFIED</span>, 'Established agent, good history'],
-            ['40–69', <span className="text-accent">STANDARD</span>, 'New / unverified agent'],
-            ['1–39', <span className="text-accent-warn">RESTRICTED</span>, 'Anomalous or failed KYC'],
+            ['90-100', <span className="text-accent3">ELITE</span>, 'Long track record, KYC, ~0 disputes'],
+            ['70-89', <span className="text-accent3">VERIFIED</span>, 'Established agent, good history'],
+            ['40-69', <span className="text-accent">STANDARD</span>, 'New / unverified agent'],
+            ['1-39', <span className="text-accent-warn">RESTRICTED</span>, 'Anomalous or failed KYC'],
             ['0', <span className="text-accent2">BLOCKED</span>, 'Known fraud / active dispute'],
           ]}
         />
 
         <DocH3>Operator verification (MVP)</DocH3>
         <Prose>
-          MVP &quot;KYC&quot; is email magic-link verification only (AD-4) — real in mechanism, trivial
+          MVP &quot;KYC&quot; is email magic-link verification only (AD-4) - real in mechanism, trivial
           in rigor. The full document-verification pipeline is post-MVP.
         </Prose>
 
@@ -273,7 +273,7 @@ score = 0.5 * completionRate
           Register an agent DID. Requires a verified operator email.
         </Endpoint>
         <Endpoint method="GET" path="/trust/{did}" status="mvp">
-          Public trust profile (sub-second, reads off-chain DB — AD-3).
+          Public trust profile (sub-second, reads off-chain DB - AD-3).
         </Endpoint>
       </>
     ),
@@ -328,7 +328,7 @@ get_settlement(settlement_id) -> Option<SettlementRecord>`}
 
         <Callout tone="warn">
           Contract code + deploy tooling are complete. The live testnet deploy needs a funded testnet
-          key — see {code('KNOWN_ISSUES.md')}. Hashes land in {code('contracts/deployed-addresses.json')}.
+          key - see {code('KNOWN_ISSUES.md')}. Hashes land in {code('contracts/deployed-addresses.json')}.
         </Callout>
       </>
     ),
@@ -338,7 +338,7 @@ get_settlement(settlement_id) -> Option<SettlementRecord>`}
   {
     id: 'sdk',
     label: 'Client SDK',
-    blurb: 'Agent wallet toolkit — auto 402 handling.',
+    blurb: 'Agent wallet toolkit - auto 402 handling.',
     status: 'mvp',
     content: (
       <>
@@ -359,7 +359,7 @@ const agent = new fourotwoAgent({
   network: 'casper',
 });
 
-// replaces fetch — handles 402 automatically
+// replaces fetch - handles 402 automatically
 const res = await agent.fetch('https://mock-rwa-api.fourotwo.io/data/RE-NYC-001');
 const data = await res.json();`}
         />
@@ -369,7 +369,7 @@ const data = await res.json();`}
           lang="steps"
           code={`1. Receive 402 + PAYMENT-REQUIRED header
 2. Decode terms (amount, recipient, network, expiry)
-3. Check daily + per-request budget — abort if exceeded
+3. Check daily + per-request budget - abort if exceeded
 4. Sign the canonical envelope with the agent key
 5. Attach DID, retry with PAYMENT-SIGNATURE header
 6. Log the payment to the local ledger; return the response`}
@@ -382,7 +382,7 @@ const data = await res.json();`}
           resets at UTC midnight.
         </Prose>
 
-        <DocH3>Reference consumer — RWA Oracle Agent</DocH3>
+        <DocH3>Reference consumer - RWA Oracle Agent</DocH3>
         <Prose>
           {code('demos/rwa-oracle-agent')} is the first SDK consumer (M2-T7). It optionally
           self-registers in the KYX registry, then drives the full 402→pay→settle→data loop against
@@ -401,7 +401,7 @@ node demos/rwa-oracle-agent/agent.mjs         # runs the loop, logs each step`}
   {
     id: 'dashboard',
     label: 'Dashboard',
-    blurb: 'This app — pages and live demo.',
+    blurb: 'This app - pages and live demo.',
     status: 'mvp',
     content: (
       <>
@@ -445,7 +445,7 @@ npm run dev -w @fourotwo/dashboard       # :3000  → open /playground`}
 
         <DocH3>Agents, wallet & trust (Milestone 3)</DocH3>
         <Prose>
-          Shipped: agent registration with in-browser keypair generation (AD-8 — the private key
+          Shipped: agent registration with in-browser keypair generation (AD-8 - the private key
           never touches a server), wallet balance via CSPR.cloud + faucet funding, the transaction
           history table, and trust-score cards with the full dimension breakdown.
         </Prose>
@@ -470,7 +470,7 @@ npm run dev -w @fourotwo/dashboard       # :3000  → open /playground`}
           lang="ts"
           code={`interface TrustScore {
   did: string;
-  score: number;            // 0–100
+  score: number;            // 0-100
   tier: TrustTier;
   dimensions: TrustDimensions;
   history: TrustHistory;
@@ -488,7 +488,7 @@ interface SettlementReceipt {
   txHash?: string;
   trustScore: number;       // score at settlement time
   settledAt: string;
-  facilitatorSignature: string;   // fourotwo signs every receipt
+  facilitatorSignature: string;   // layer402 signs every receipt
 }
 
 type TrustTier   = 'ELITE' | 'VERIFIED' | 'STANDARD' | 'RESTRICTED' | 'BLOCKED';
@@ -510,7 +510,7 @@ type ChainNetwork = 'base' | 'casper' | 'solana' | 'stellar' | 'polygon';`}
 }`}
         />
         <Callout>
-          The bytes that are signed are produced by {code('canonicalPaymentMessage()')} — a fixed
+          The bytes that are signed are produced by {code('canonicalPaymentMessage()')} - a fixed
           field order shared by signer and verifier. Changing it breaks every signature.
         </Callout>
       </>
@@ -537,7 +537,7 @@ type ChainNetwork = 'base' | 'casper' | 'solana' | 'stellar' | 'polygon';`}
         />
         <Prose>
           MVP settles direct on-chain only. The smart router (auto-selecting the cheapest correct mode)
-          is post-MVP — the {code('/settle')} contract already accepts {code('settlement_mode: "auto"')}.
+          is post-MVP - the {code('/settle')} contract already accepts {code('settlement_mode: "auto"')}.
         </Prose>
 
         <DocH2>Security model</DocH2>
@@ -567,7 +567,7 @@ type ChainNetwork = 'base' | 'casper' | 'solana' | 'stellar' | 'polygon';`}
     status: 'planned',
     content: (
       <>
-        <DocH2 status="mvp">Now — Hackathon MVP</DocH2>
+        <DocH2 status="mvp">Now - Hackathon MVP</DocH2>
         <Prose>Casper Agentic Buildathon submission. The pay→verify→settle→score loop, end to end.</Prose>
         <DocTable
           headers={['Milestone', 'Scope', 'Status']}
@@ -593,24 +593,24 @@ type ChainNetwork = 'base' | 'casper' | 'solana' | 'stellar' | 'polygon';`}
         <Callout tone="warn">
           <strong>* One item carries the same testnet-deploy caveat as M1:</strong> on-chain
           trust-score sync (M3-T7) is a non-blocking write-behind stub pending the funded testnet
-          deploy (acceptable under AD-3). Everything else in M1–M3 is implemented and the full
-          pay→verify→settle→score loop runs end to end — 21 passing unit tests plus a live RWA Oracle
+          deploy (acceptable under AD-3). Everything else in M1-M3 is implemented and the full
+          pay→verify→settle→score loop runs end to end - 21 passing unit tests plus a live RWA Oracle
           Agent demo.
         </Callout>
 
-        <DocH2 status="upcoming">Q3 2026 — Foundation</DocH2>
+        <DocH2 status="upcoming">Q3 2026 - Foundation</DocH2>
         <Prose>
           Open-source SDK (TS + Python), facilitator on Base + Casper mainnet, basic trust scoring
           live, dashboard closed beta, 10 design-partner API providers.
         </Prose>
 
-        <DocH2 status="planned">Q4 2026 — Trust layer</DocH2>
+        <DocH2 status="planned">Q4 2026 - Trust layer</DocH2>
         <Prose>
           Full KYC pipeline, trust score v2 (behavioral consistency), public API marketplace, fiat
           onramp, payment channels beta for ELITE agents.
         </Prose>
 
-        <DocH2 status="planned">2027 — Scale & protocol</DocH2>
+        <DocH2 status="planned">2027 - Scale & protocol</DocH2>
         <Prose>
           Multi-chain (Solana, Polygon, Stellar), L2 settlement routing, enterprise tier, batched
           settlement GA, and contributing a KYX credential spec to the x402 Foundation.

@@ -9,11 +9,6 @@ export interface TrustClient {
   getTrustSummary(did: string): Promise<AgentTrustSummary | null>;
 }
 
-/**
- * M1 stub — the KYX Registry service (and trust scoring) ships in M3. Per M1-T8,
- * /verify returns a `trust_pending: true` summary until then. Swapped for
- * {@link HttpTrustClient} in M3-T6.
- */
 export class StubTrustClient implements TrustClient {
   async getTrustSummary(did: string): Promise<AgentTrustSummary> {
     return {
@@ -30,7 +25,6 @@ export class StubTrustClient implements TrustClient {
 }
 
 /**
- * Live client against the KYX Registry's `GET /trust/{did}` endpoint (M3-T6).
  * Returns `null` on 404 (unknown agent) so /verify can reject with
  * AGENT_NOT_REGISTERED.
  */

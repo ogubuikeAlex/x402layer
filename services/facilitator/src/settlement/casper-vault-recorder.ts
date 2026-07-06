@@ -1,9 +1,6 @@
 /**
- * Live `SettlementVault` recorder (M1-T9). Broadcasts a `record_settlement`
- * contract call to the deployed vault, signed with the facilitator service key.
- *
- * Like trust sync (AD-3) the on-chain write is best-effort: any failure is
- * reported as `recorded: false` and never breaks the /settle response.
+ * The on-chain write is best-effort: any failure is reported as
+ * `recorded: false` and never breaks the /settle response.
  */
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -14,7 +11,7 @@ import { tryEndpoints } from '../chains/rpc-fallback.js';
 
 // casper-js-sdk ships a CommonJS bundle marked `__esModule` with no `default`
 // export. ESM named/default/namespace imports each break under one of tsx
-// (esbuild) or node — so load it via real `require`, which returns the full
+// (esbuild) or node - so load it via real `require`, which returns the full
 // module object identically in both runtimes. Types come from `import type`.
 const sdk = createRequire(import.meta.url)('casper-js-sdk') as typeof import('casper-js-sdk');
 

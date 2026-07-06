@@ -1,0 +1,11 @@
+{
+  "name": "@fourotwo-demo/paid-api-provider",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Meridian RWA Data API - reference merchant that monetises an API via layer402 + the fourotwo facilitator",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs"
+  }
+}

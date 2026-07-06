@@ -19,7 +19,6 @@ export class SettlementUnconfiguredError extends Error {
   }
 }
 
-/** Low-level Casper node access. Injected so the adapter is unit-testable (M1-T6). */
 export interface CasperRpcClient {
   /** Balance of an account (by account-hash hex) in motes. */
   getBalanceMotes(accountHashHex: string): Promise<bigint>;
@@ -40,11 +39,6 @@ function rawCasperPublicKey(pubHex: string): Uint8Array {
   return hexToBytes(stripped);
 }
 
-/**
- * Casper adapter (primary path, AD-2). Signature verification is done locally
- * (ed25519 over the canonical envelope); balance + settlement go through an
- * injected {@link CasperRpcClient}.
- */
 export class CasperAdapter implements ChainAdapter {
   readonly network = 'casper' as const;
 
@@ -87,12 +81,8 @@ export class CasperAdapter implements ChainAdapter {
 }
 
 /**
- * Default Casper client backed by CSPR.cloud (reads) + Casper RPC (writes).
- *
- * Reads are live. Broadcasting (`broadcastTransfer`) requires the facilitator
- * service account key wired through casper-js-sdk — see M1-T9 / KNOWN_ISSUES.md.
- * Until that is wired it throws {@link SettlementUnconfiguredError} so the gap is
- * loud rather than silent.
+ * Reads are live; `broadcastTransfer` throws {@link SettlementUnconfiguredError}
+ * until a live broadcaster is configured, so the gap is loud rather than silent.
  */
 export class CsprCloudCasperClient implements CasperRpcClient {
   constructor(
@@ -158,7 +148,7 @@ export class CsprCloudCasperClient implements CasperRpcClient {
         return { txHash: deployHash, state: exec.Success ? ('confirmed' as const) : ('failed' as const) };
       });
     } catch {
-      // All endpoints failed — status is genuinely unknown, not an error to throw.
+      // All endpoints failed - status is genuinely unknown, not an error to throw.
       return { txHash: deployHash, state: 'unknown' };
     }
   }

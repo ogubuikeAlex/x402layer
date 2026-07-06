@@ -1,6 +1,5 @@
 import type { PaymentPayload } from '@fourotwo/types';
 
-/** Status of an on-chain transaction. */
 export type TxState = 'pending' | 'confirmed' | 'failed' | 'unknown';
 
 export interface TxStatus {
@@ -13,7 +12,6 @@ export interface SettlementResult {
   /** On-chain transaction / deploy hash. */
   txHash: string;
   state: TxState;
-  /** Settlement mode actually used (direct, for M1). */
   mode: 'direct';
 }
 

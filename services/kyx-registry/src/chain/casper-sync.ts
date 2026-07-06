@@ -54,7 +54,6 @@ export async function syncAgentRegistration(args: {
 export async function syncTrustScore(trust: TrustRecord, config: KyxConfig): Promise<void> {
   const recorder = buildRecorder(config);
   if (!recorder) return;
-  // Best-effort, non-blocking per AD-3: a failure is logged inside the recorder.
   await recorder.updateTrustScore({
     did: trust.did,
     score: trust.score,

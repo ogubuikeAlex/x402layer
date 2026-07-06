@@ -2,7 +2,7 @@
   "name": "@fourotwo/facilitator",
   "version": "0.1.0",
   "private": true,
-  "description": "fourotwo x402 facilitator for /verify, /settle, /supported",
+  "description": "fourotwo layer402 facilitator for /verify, /settle, /supported",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

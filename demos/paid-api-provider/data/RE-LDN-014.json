@@ -1,0 +1,14 @@
+{
+  "id": "RE-LDN-014",
+  "name": "City of London Mixed-Use",
+  "kind": "Real estate",
+  "location": "EC2, London, UK",
+  "valuation_gbp": 268000000,
+  "cap_rate": 0.0521,
+  "occupancy": 0.887,
+  "noi_gbp": 13962800,
+  "last_appraisal": "2026-05-21",
+  "tokenized_supply": 268000,
+  "price_per_token_gbp": 1000,
+  "oracle_signed_at": "2026-07-03T00:00:00Z"
+}

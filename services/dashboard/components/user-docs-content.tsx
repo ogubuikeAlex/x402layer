@@ -9,7 +9,6 @@ import {
   DocH3,
   DocTable,
   Endpoint,
-  KeyVal,
   Prose,
   type DocStatus,
 } from './docs';
@@ -33,9 +32,9 @@ export const USER_TABS: UserDocTab[] = [
     status: 'live',
     content: (
       <>
-        <DocH2>What is fourotwo?</DocH2>
+        <DocH2>What is layer402?</DocH2>
         <Prose>
-          fourotwo is a payment layer for AI agents built on the x402 standard. It lets an agent pay
+          layer402 is a payment layer for AI agents built on the x402 standard. It lets an agent pay
           for an API call automatically when the server answers with HTTP 402, verifies and settles
           that payment on-chain, and attaches a portable <strong>trust score</strong> to every agent
           so providers know who they are transacting with.
@@ -46,13 +45,13 @@ export const USER_TABS: UserDocTab[] = [
           rows={[
             ['Building an agent that consumes paid APIs', 'The Agent SDK', 'Quickstart ↓ / Agent SDK'],
             ['Selling an API and want to charge per call', 'The Facilitator', 'Accept payments'],
-            ['Either — and want portable reputation', 'The Trust Registry', 'Trust & identity'],
+            ['Either - and want portable reputation', 'The Trust Registry', 'Trust & identity'],
           ]}
         />
 
         <DocH2>The payment loop</DocH2>
         <Prose>
-          Every fourotwo transaction is the same four-step loop. The SDK and facilitator handle every
+          Every layer402 transaction is the same four-step loop. The SDK and facilitator handle every
           step for you.
         </Prose>
         <CodeBlock
@@ -80,7 +79,7 @@ const agent = new fourotwoAgent({
   budget: { dailyUsd: 10, perRequestUsd: 0.5 },     // optional spend limits
 });
 
-// agent.fetch behaves exactly like fetch — but pays when it has to
+// agent.fetch behaves exactly like fetch - but pays when it has to
 const res = await agent.fetch('https://api.example.com/data/RE-NYC-001');
 const data = await res.json();`}
         />
@@ -130,7 +129,7 @@ const data = await res.json();`}
 
         <DocH3>Spend budget</DocH3>
         <Prose>
-          Budgets <strong>reject</strong> — they do not queue. If a payment would exceed a limit the
+          Budgets <strong>reject</strong> - they do not queue. If a payment would exceed a limit the
           SDK throws {code('BudgetExceededError')} <em>before</em> the payment is ever signed, so a
           runaway loop can never drain the wallet. The daily counter resets at UTC midnight.
         </Prose>
@@ -161,7 +160,7 @@ try {
           lang="steps"
           code={`1. Your call gets a 402 + a PAYMENT-REQUIRED header
 2. The SDK decodes the terms (amount, recipient, network, expiry, nonce)
-3. It checks your budget — throws BudgetExceededError if over
+3. It checks your budget - throws BudgetExceededError if over
 4. It signs the canonical payment envelope with your key
 5. It retries with PAYMENT-SIGNATURE + X-FOUROTWO-DID headers attached
 6. On success it commits the spend and logs the payment to the ledger`}
@@ -169,7 +168,7 @@ try {
 
         <DocH3>Transaction ledger</DocH3>
         <Prose>
-          Every attempt is recorded locally — successes, failures, and budget rejections. Read it back
+          Every attempt is recorded locally - successes, failures, and budget rejections. Read it back
           with {code('getTransactionLog()')}.
         </Prose>
         <CodeBlock
@@ -194,7 +193,7 @@ try {
         <Prose>
           To monetise an endpoint you do two things: answer unpaid requests with a{' '}
           <strong>402 + payment terms</strong>, and when the caller retries with a signature, hand it
-          to the fourotwo facilitator to <strong>verify</strong> and <strong>settle</strong>. The
+          to the layer402 facilitator to <strong>verify</strong> and <strong>settle</strong>. The
           facilitator does all the chain-specific work; your server just brokers two HTTP calls.
         </Prose>
 
@@ -229,7 +228,7 @@ res.end(JSON.stringify({ error: 'PAYMENT_REQUIRED' }));`}
 
         <DocH3>2 · Verify &amp; settle the retry</DocH3>
         <Prose>
-          The SDK retries with three headers — {code('PAYMENT-REQUIRED')},{' '}
+          The SDK retries with three headers - {code('PAYMENT-REQUIRED')},{' '}
           {code('PAYMENT-SIGNATURE')}, and {code('X-FOUROTWO-DID')}. Forward them to{' '}
           {code('/verify')}; if it returns {code('valid: true')}, call {code('/settle')} with the
           returned {code('verification_id')}.
@@ -300,7 +299,7 @@ did:fourotwo:casper:3d5de8c609159a0954e773dd686fb7724428316cb30e00bdc...`}
         <DocH3>Register an agent</DocH3>
         <Prose>
           Registration is two steps against the registry: verify an operator email (magic link), then
-          register the agent under that email. Keys are generated client-side — the private key never
+          register the agent under that email. Keys are generated client-side - the private key never
           touches a server. You can also do this visually on the{' '}
           <a href="/agents" className="text-accent underline">Agents</a> page.
         </Prose>
@@ -328,8 +327,8 @@ curl -X POST $KYX_URL/agents/register \\
             ['Payment completion rate', '50%', 'live'],
             ['Operator verification (KYC)', '30%', 'live'],
             ['Volume tier', '20%', 'live'],
-            ['Behavioral consistency', '— (v2)', 'upcoming'],
-            ['Dispute rate', '— (v2)', 'upcoming'],
+            ['Behavioral consistency', '- (v2)', 'upcoming'],
+            ['Dispute rate', '- (v2)', 'upcoming'],
           ]}
         />
 
@@ -337,15 +336,15 @@ curl -X POST $KYX_URL/agents/register \\
         <DocTable
           headers={['Score', 'Tier', 'Meaning']}
           rows={[
-            ['90–100', <span className="text-accent3">ELITE</span>, 'Long track record, KYC, ~0 disputes'],
-            ['70–89', <span className="text-accent3">VERIFIED</span>, 'Established agent, good history'],
-            ['40–69', <span className="text-accent">STANDARD</span>, 'New / unverified agent'],
-            ['1–39', <span className="text-accent-warn">RESTRICTED</span>, 'Anomalous or failed KYC'],
+            ['90-100', <span className="text-accent3">ELITE</span>, 'Long track record, KYC, ~0 disputes'],
+            ['70-89', <span className="text-accent3">VERIFIED</span>, 'Established agent, good history'],
+            ['40-69', <span className="text-accent">STANDARD</span>, 'New / unverified agent'],
+            ['1-39', <span className="text-accent-warn">RESTRICTED</span>, 'Anomalous or failed KYC'],
             ['0', <span className="text-accent2">BLOCKED</span>, 'Known fraud / active dispute'],
           ]}
         />
         <Prose>
-          Read any agent&apos;s public trust profile with {code('GET /trust/{did}')} — see the API
+          Read any agent&apos;s public trust profile with {code('GET /trust/{did}')} - see the API
           reference.
         </Prose>
       </>
@@ -423,7 +422,7 @@ curl -X POST $KYX_URL/agents/register \\
         />
 
         <Endpoint method="GET" path="/supported" status="live">
-          Capability advertisement — supported networks, tokens, and features.
+          Capability advertisement - supported networks, tokens, and features.
         </Endpoint>
         <Endpoint method="GET" path="/trust/{did}" status="live">
           Public trust profile for an agent DID (reads sub-second, served by the registry).
@@ -443,7 +442,7 @@ curl -X POST $KYX_URL/agents/register \\
           Public trust profile (score, tier, dimensions, flags).
         </Endpoint>
 
-        <DocH3>Self-hosting</DocH3>
+        {/* <DocH3>Self-hosting</DocH3>
         <KeyVal
           items={[
             ['facilitator', 'default port 4001 · FACILITATOR_URL'],
@@ -453,10 +452,10 @@ curl -X POST $KYX_URL/agents/register \\
           ]}
         />
         <Callout>
-          Want the internals — contracts, ADR decisions, settlement routing, the threat model? The{' '}
+          Want the internals - contracts, ADR decisions, settlement routing, the threat model? The{' '}
           <a href="/xfourohtwo-daducks" className="text-accent underline">developer docs</a> cover the
           full build surface.
-        </Callout>
+        </Callout> */}
       </>
     ),
   },

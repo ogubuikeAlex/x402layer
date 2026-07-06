@@ -1,9 +1,6 @@
 use odra::prelude::*;
 
 /// On-chain record for a registered agent.
-///
-/// Mirrors `AgentDid` in the product spec (Section 7) and the shared
-/// `@fourotwo/types` `AgentDid` interface.
 #[odra::odra_type]
 pub struct AgentRecord {
     pub did: String,
@@ -157,7 +154,6 @@ impl KyxRegistry {
         self.agents.set(&did, record);
     }
 
-    /// Total number of registered agents.
     pub fn total_agents(&self) -> u64 {
         self.total_agents.get_or_default()
     }

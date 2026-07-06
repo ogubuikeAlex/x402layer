@@ -1,0 +1,13 @@
+{
+  "id": "CRED-SME-77",
+  "name": "SME Private Credit Basket",
+  "kind": "Private credit",
+  "obligors": 143,
+  "weighted_apr": 0.1185,
+  "wal_years": 2.3,
+  "principal_outstanding_usd": 88400000,
+  "delinquency_30d": 0.021,
+  "default_rate_ttm": 0.014,
+  "rating_model": "internal-B+",
+  "oracle_signed_at": "2026-07-03T00:00:00Z"
+}

@@ -21,13 +21,12 @@ export function Ticker() {
         {items.map((t, i) => (
           <span
             key={i}
-            className={`border-r border-hairline px-8 text-[10px] uppercase tracking-label ${
-              t.tone === 'accent'
+            className={`border-r border-hairline px-8 text-[10px] uppercase tracking-label ${t.tone === 'accent'
                 ? 'text-accent'
                 : t.tone === 'red'
                   ? 'text-accent2'
                   : 'text-text-dim'
-            }`}
+              }`}
           >
             {t.label}
           </span>

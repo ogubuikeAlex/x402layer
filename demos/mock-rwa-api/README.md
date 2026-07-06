@@ -1,6 +1,6 @@
 # fourotwo mock RWA API
 
-Static x402-gated merchant for the MVP demo (ADR AD-6).
+Static layer402-gated merchant for the MVP demo (ADR AD-6).
 
 ```bash
 npm run build -w @fourotwo/types

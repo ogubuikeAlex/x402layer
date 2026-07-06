@@ -2,10 +2,6 @@
 
 import { useState, type ReactNode } from 'react';
 
-/* ============================================================
-   Documentation primitives — styled per /design.md
-   ============================================================ */
-
 export type DocStatus = 'live' | 'mvp' | 'upcoming' | 'planned';
 
 const STATUS_STYLE: Record<DocStatus, { label: string; cls: string }> = {
@@ -132,7 +128,6 @@ export function DocTable({ headers, rows }: { headers: string[]; rows: ReactNode
   );
 }
 
-/** Endpoint header: METHOD + path + status. */
 export function Endpoint({
   method,
   path,

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "First fourotwo SDK consumer — drives the full x402 loop (M2-T7)",
+  "description": "First fourotwo SDK consumer - drives the full layer402 loop (M2-T7)",
   "scripts": {
     "start": "node agent.mjs"
   }

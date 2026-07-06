@@ -53,6 +53,7 @@ export function AgentRegistration() {
         network: 'casper',
       }),
     });
+    console.log({res})
     const body = (await res.json()) as { agent?: { did: string }; error?: string };
     if (!res.ok || !body.agent) throw new Error(body.error ?? 'registration failed');
     setCreated({ did, privateKeyHex, publicKeyHex });

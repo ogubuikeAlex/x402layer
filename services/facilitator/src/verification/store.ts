@@ -10,8 +10,8 @@ export interface VerificationRecord {
 }
 
 /**
- * In-memory store mapping a verification_id to its verified payment, so /settle
- * can settle exactly what was verified. TTL-bounded; MVP-only (no persistence).
+ * Maps a verification_id to its verified payment, so /settle can settle exactly
+ * what was verified. TTL-bounded.
  */
 export class VerificationStore {
   private readonly records = new Map<string, VerificationRecord>();

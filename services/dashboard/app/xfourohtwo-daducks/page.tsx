@@ -19,8 +19,8 @@ export default function InternalDocsPage() {
           Architecture &amp; milestones.
         </h1>
         <p className="max-w-xl font-serif text-[16px] font-light leading-relaxed text-text-mid">
-          Internal engineering reference — milestones, ADR decisions, contract internals, and the
-          full build surface. Looking to integrate fourotwo into your own app? See the{' '}
+          Internal engineering reference - milestones, ADR decisions, contract internals, and the
+          full build surface. Looking to integrate layer402 into your own app? See the{' '}
           <a href="/docs" className="text-accent underline">
             platform docs
           </a>{' '}

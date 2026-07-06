@@ -24,11 +24,6 @@ interface TraceStep {
   ok: boolean;
 }
 
-/**
- * Runs a full x402 demo loop against the live facilitator:
- * craft a signed Casper payment → POST /verify → POST /settle.
- * This is the visual counterpart of the M1 curl test.
- */
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as { amount?: string };
   const amount = body.amount && /^\d+$/.test(body.amount) ? body.amount : '5000';
@@ -67,7 +62,6 @@ export async function POST(req: Request) {
   const trace: TraceStep[] = [];
 
   try {
-    // 1. /verify
     const vRes = await fetch(`${FACILITATOR_URL}/verify`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -87,7 +81,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ did, trace, settled: false });
     }
 
-    // 2. /settle
     const sRes = await fetch(`${FACILITATOR_URL}/settle`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

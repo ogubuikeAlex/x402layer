@@ -36,7 +36,7 @@ export default async function OverviewPage() {
             <span className="text-accent">agent payment.</span>
           </h1>
           <p className="mt-7 max-w-md font-serif text-[17px] font-light leading-relaxed text-text-mid">
-            fourotwo is an x402-compatible payment facilitator that gives every AI agent a
+            layer402 is an x402-compatible payment facilitator that gives every AI agent a
             verifiable trust score on every transaction. One loop:{' '}
             <span className="text-text">pay → verify → settle → score</span>.
           </p>
@@ -62,12 +62,11 @@ export default async function OverviewPage() {
             <div className="scan-overlay" />
             <div className="flex items-center justify-between border-b border-hairline bg-black/30 px-5 py-3.5">
               <span className="text-[10px] uppercase tracking-label text-text-dim">
-                Facilitator — live status
+                Facilitator - live status
               </span>
               <span
-                className={`flex items-center gap-2 text-[10px] uppercase tracking-wide2 ${
-                  status.online ? 'text-accent3' : 'text-accent2'
-                }`}
+                className={`flex items-center gap-2 text-[10px] uppercase tracking-wide2 ${status.online ? 'text-accent3' : 'text-accent2'
+                  }`}
               >
                 <span
                   className="h-1.5 w-1.5 rounded-full"
@@ -82,17 +81,17 @@ export default async function OverviewPage() {
 
             <div className="divide-y divide-[var(--border)]">
               <Row k="endpoint" v="/health · /supported · /verify · /settle" />
-              <Row k="version" v={status.supported?.version ?? '—'} />
-              <Row k="networks" v={networks.map((n) => n.network).join(' · ') || '—'} />
+              <Row k="version" v={status.supported?.version ?? '-'} />
+              <Row k="networks" v={networks.map((n) => n.network).join(' · ') || '-'} />
               <Row
                 k="tokens"
                 v={
                   networks.length
                     ? networks.map((n) => `${n.network}:${n.tokens.join('/')}`).join('  ')
-                    : '—'
+                    : '-'
                 }
               />
-              <Row k="features" v={features.join(' · ') || '—'} />
+              <Row k="features" v={features.join(' · ') || '-'} />
             </div>
 
             <div className="grid grid-cols-3 border-t border-hairline bg-black/20">
