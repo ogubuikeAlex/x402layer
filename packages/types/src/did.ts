@@ -79,7 +79,7 @@ export function deriveAddress(network: ChainNetwork, publicKeyHex: string): stri
     case 'base':
       return baseAddress(publicKeyHex);
     default:
-      throw new Error(`deriveAddress: unsupported network "${network}" in MVP`);
+      throw new Error(`deriveAddress: unsupported network "${network}"`);
   }
 }
 

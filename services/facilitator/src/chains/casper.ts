@@ -121,7 +121,7 @@ export class CsprCloudCasperClient implements CasperRpcClient {
     throw new SettlementUnconfiguredError(
       'Casper live settlement is not wired in this environment. Configure the ' +
         'facilitator service key + casper-js-sdk broadcaster to enable real ' +
-        'on-chain settlement (M1-T9). See KNOWN_ISSUES.md.',
+        'on-chain settlement.',
     );
   }
 

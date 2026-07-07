@@ -31,7 +31,7 @@ export async function runSettle(ctx: AppContext, req: SettleRequest): Promise<Se
       status: 400,
       body: {
         error: 'UNSUPPORTED_SETTLEMENT_MODE',
-        detail: `Only direct settlement is supported in MVP (got "${requestedMode}")`,
+        detail: `Only direct settlement is supported (got "${requestedMode}")`,
       },
     };
   }
