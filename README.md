@@ -32,7 +32,16 @@ score    the agent's trust score updates from the settled payment
 | ------------------ | ----------------------------------------------- |
 | Facilitator API    | https://fourotwo-facilitator.onrender.com      |
 | KYX trust registry | https://x402layer-kyx-registry.onrender.com |
-| Dashboard | https://x402layer-dashboard.vercel.app/ |
+| Website | https://x402layer-dashboard.vercel.app/ |
+| Demo user of agent SDK | https://atlas-research-agent.onrender.com/ |
+| Demo user of Facilitator | https://meridian-fa2d.onrender.com/ |
+
+## Smart Contracts
+
+| Name            | URL                                             | Contract Hash |
+| ------------------ | ----------------------------------------------- | ----------- |
+| Settlement_Vault  | [Settlement Contract Package](https://testnet.cspr.live/contract-package/7601c68914e92175b498040af9ebc320544b20509d2b5b2339249ff967a0ecf6)      | hash-7601c68914e92175b498040af9ebc320544b20509d2b5b2339249ff967a0ecf6 |
+| KYX_Registry | [KYXRegistry Contract Package](https://testnet.cspr.live/contract-package/1e2b354d2f9128b8f1c42cc12046f514292f95f7a40e3b3a9329a4f261a312d0) | hash-1e2b354d2f9128b8f1c42cc12046f514292f95f7a40e3b3a9329a4f261a312d0 |
 
 ## Published packages
 
@@ -109,11 +118,3 @@ wired into the facilitator and registry via environment variables.
 ## License & Terms of Service
 
 Copyright (c) 2026. All rights reserved.
-
-This repository is publicly visible for educational and review purposes only. By viewing this repository, you agree to the following terms:
-
-- **No Duplication:** You may not copy, duplicate, reproduce, or clone this source code, in whole or in part, outside of the GitHub platform.
-- **No Modification or Distribution:** You may not modify, distribute, publish, sub-license, or sell this code under any circumstances.
-- **GitHub Platform Exception:** In accordance with the GitHub Terms of Service, you are permitted to view and fork this repository strictly within GitHub for your own personal use.
-
-Any unauthorized copying or use of this software constitutes copyright infringement.
