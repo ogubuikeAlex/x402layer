@@ -1,21 +1,18 @@
-# fourotwo
+# layer402
 
 ```
-
- /$$$$$$$$                                   /$$$$$$$$
-| $$_____/                                  |__  $$__/
-| $$     /$$$$$$  /$$   /$$  /$$$$$$   /$$$$$$ | $$ /$$  /$$  /$$  /$$$$$$
-| $$$$$ /$$__  $$| $$  | $$ /$$__  $$ /$$__  $$| $$| $$ | $$ | $$ /$$__  $$
-| $$__/| $$  \ $$| $$  | $$| $$  \__/| $$  \ $$| $$| $$ | $$ | $$| $$  \ $$
-| $$   | $$  | $$| $$  | $$| $$      | $$  | $$| $$| $$ | $$ | $$| $$  | $$
-| $$   |  $$$$$$/|  $$$$$$/| $$      |  $$$$$$/| $$|  $$$$$/$$$$/|  $$$$$$/
-|__/    \______/  \______/ |__/       \______/ |__/ \_____/\___/  \______/
-
+ ___      _______  __   __  _______  ______    _   ___  _______  _______ 
+|   |    |   _   ||  | |  ||       ||    _ |  | | |   ||  _    ||       |
+|   |    |  |_|  ||  |_|  ||    ___||   | ||  | |_|   || | |   ||____   |
+|   |    |       ||       ||   |___ |   |_||_ |       || | |   | ____|  |
+|   |___ |       ||_     _||    ___||    __  ||___    || |_|   || ______|
+|       ||   _   |  |   |  |   |___ |   |  | |    |   ||       || |_____ 
+|_______||__| |__|  |___|  |_______||___|  |_|    |___||_______||_______|
 ```
 
-> The trust & settlement layer for [layer402](layer402layer-dashboard.vercel.app) agent payments.
+> The trust & settlement layer for [x402](https://x402layer-dashboard.vercel.app/) agent payments.
 
-fourotwo lets AI agents pay for API access automatically, verifies and settles
+layer402 lets AI agents pay for API access automatically, verifies and settles
 those payments on-chain, and attaches a **portable trust score** to every agent -
 so providers know who they're transacting with. It's built on the layer402 standard
 and adds the compliance and reputation layer on top.
@@ -33,8 +30,9 @@ score    the agent's trust score updates from the settled payment
 
 | Service            | URL                                             |
 | ------------------ | ----------------------------------------------- |
-| Facilitator API    | https://fourotwo-facilitator.onrender.com       |
-| KYX trust registry | https://layer402layer-kyx-registry.onrender.com |
+| Facilitator API    | https://fourotwo-facilitator.onrender.com      |
+| KYX trust registry | https://x402layer-kyx-registry.onrender.com |
+| Dashboard | https://x402layer-dashboard.vercel.app/ |
 
 ## Published packages
 
@@ -59,7 +57,7 @@ const data = await res.json();
 ```
 
 Full integration guides - paying, accepting payments, trust, and the HTTP API
-reference all live on the dashboard [**docs**](https://layer402layer-dashboard.vercel.app/docs) page.
+reference all live on the dashboard [**docs**](https://x402layer-dashboard.vercel.app/) page.
 
 ## Repository layout
 
