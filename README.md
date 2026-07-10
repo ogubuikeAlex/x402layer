@@ -10,7 +10,7 @@
 |_______||__| |__|  |___|  |_______||___|  |_|    |___||_______||_______|
 ```
 
-> The trust & settlement layer for [x402](https://x402layer-dashboard.vercel.app/) agent payments.
+> The trust & settlement layer for [x402](https://x402.org/wp-content/uploads/sites/10/2026/06/x402-whitepaper.pdf) agent payments.
 
 layer402 lets AI agents pay for API access automatically, verifies and settles
 those payments on-chain, and attaches a **portable trust score** to every agent -
@@ -30,9 +30,9 @@ score    the agent's trust score updates from the settled payment
 
 | Service            | URL                                             |
 | ------------------ | ----------------------------------------------- |
+| Website | https://x402layer-dashboard.vercel.app/ |
 | Facilitator API    | https://fourotwo-facilitator.onrender.com      |
 | KYX trust registry | https://x402layer-kyx-registry.onrender.com |
-| Website | https://x402layer-dashboard.vercel.app/ |
 | Demo user of agent SDK | https://atlas-research-agent.onrender.com/ |
 | Demo user of Facilitator | https://meridian-fa2d.onrender.com/ |
 
@@ -40,8 +40,8 @@ score    the agent's trust score updates from the settled payment
 
 | Name            | URL                                             | Contract Hash |
 | ------------------ | ----------------------------------------------- | ----------- |
-| Settlement_Vault  | [Settlement Contract Package](https://testnet.cspr.live/contract-package/7601c68914e92175b498040af9ebc320544b20509d2b5b2339249ff967a0ecf6)      | hash-7601c68914e92175b498040af9ebc320544b20509d2b5b2339249ff967a0ecf6 |
-| KYX_Registry | [KYXRegistry Contract Package](https://testnet.cspr.live/contract-package/1e2b354d2f9128b8f1c42cc12046f514292f95f7a40e3b3a9329a4f261a312d0) | hash-1e2b354d2f9128b8f1c42cc12046f514292f95f7a40e3b3a9329a4f261a312d0 |
+| Settlement_Vault  | [Settlement_Vault Contract Package](https://testnet.cspr.live/contract-package/7601c68914e92175b498040af9ebc320544b20509d2b5b2339249ff967a0ecf6)      | hash-7601c68914e92175b498040af9ebc320544b20509d2b5b2339249ff967a0ecf6 |
+| KYX_Registry | [KYX_Registry Contract Package](https://testnet.cspr.live/contract-package/1e2b354d2f9128b8f1c42cc12046f514292f95f7a40e3b3a9329a4f261a312d0) | hash-1e2b354d2f9128b8f1c42cc12046f514292f95f7a40e3b3a9329a4f261a312d0 |
 
 ## Published packages
 
