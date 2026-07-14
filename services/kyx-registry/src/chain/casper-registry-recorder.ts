@@ -10,17 +10,12 @@ import { tryEndpoints } from './rpc-fallback.js';
 const sdk = createRequire(import.meta.url)('casper-js-sdk') as typeof import('casper-js-sdk');
 
 export interface CasperRegistryRecorderOptions {
-  /** Deployed KyxRegistry package hash, e.g. `hash-1e2b…` or bare hex. */
   registryPackageHash: string;
   secretKey?: string;
-  /** Path to the service-account secret key PEM (fallback to {@link secretKey}). */
   secretKeyPath?: string;
-  /** Key algorithm of the PEM: 'ed25519' (default) or 'secp256k1'. */
   keyAlgorithm: 'ed25519' | 'secp256k1';
-  /** Casper node JSON-RPC endpoints, tried in order until one succeeds. */
   nodeRpcs: string[];
   chainName: string;
-  /** Gas payment in motes for a call (default 10 CSPR). */
   paymentMotes: number;
   log?: (msg: string, meta?: unknown) => void;
 }
@@ -114,6 +109,8 @@ export class CasperRegistryRecorder {
       const signer = this.signer();
       const packageHash = this.opts.registryPackageHash.replace(/^hash-/, '');
 
+      // Backdate slightly: nodes reject transactions whose timestamp is in the
+      // future, so a host clock a few seconds fast would fail every broadcast.
       const transaction = new sdk.ContractCallBuilder()
         .byPackageHash(packageHash)
         .entryPoint(entryPoint)
@@ -121,6 +118,7 @@ export class CasperRegistryRecorder {
         .from(signer.publicKey)
         .chainName(this.opts.chainName)
         .payment(this.opts.paymentMotes)
+        .timestamp(new sdk.Timestamp(new Date(Date.now() - 10_000)))
         .build();
 
       transaction.sign(signer);

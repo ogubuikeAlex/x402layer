@@ -48,6 +48,24 @@ export interface TrustRecord {
   lastUpdated: string;
 }
 
+export interface KyxStore {
+  init(): Promise<void>;
+  close(): Promise<void>;
+  listAgents(): Promise<AgentRecord[]>;
+  getAgent(did: string): Promise<AgentRecord | undefined>;
+  getAgentByPublicKey(publicKey: string): Promise<AgentRecord | undefined>;
+  getAgentByNameAndOperator(agentName: string, operatorEmail: string): Promise<AgentRecord | undefined>;
+  getOperator(email: string): Promise<OperatorRecord | undefined>;
+  getOperatorByToken(token: string): Promise<OperatorRecord | undefined>;
+  upsertOperator(operator: OperatorRecord): Promise<void>;
+  addAgent(agent: AgentRecord): Promise<void>;
+  updateAgentOnChainStatus(did: string, status: AgentRecord['onChainStatus']): Promise<void>;
+  listSettlements(did?: string): Promise<SettlementRecord[]>;
+  addSettlement(settlement: SettlementRecord): Promise<void>;
+  getTrust(did: string): Promise<TrustRecord | undefined>;
+  putTrust(trust: TrustRecord): Promise<void>;
+}
+
 interface StoreData {
   operators: OperatorRecord[];
   agents: AgentRecord[];
@@ -55,14 +73,12 @@ interface StoreData {
   trust: TrustRecord[];
 }
 
-const EMPTY: StoreData = { operators: [], agents: [], settlements: [], trust: [] };
-
-export class KyxStore {
-  private data: StoreData = EMPTY;
+export class FileKyxStore implements KyxStore {
+  private data: StoreData = { operators: [], agents: [], settlements: [], trust: [] };
 
   constructor(private readonly file: string) {}
 
-  async load(): Promise<void> {
+  async init(): Promise<void> {
     try {
       this.data = JSON.parse(await readFile(this.file, 'utf8')) as StoreData;
     } catch {
@@ -71,28 +87,38 @@ export class KyxStore {
     }
   }
 
-  async save(): Promise<void> {
+  async close(): Promise<void> {}
+
+  private async save(): Promise<void> {
     await mkdir(dirname(this.file), { recursive: true });
     await writeFile(this.file, JSON.stringify(this.data, null, 2), 'utf8');
   }
 
-  listAgents(): AgentRecord[] {
+  async listAgents(): Promise<AgentRecord[]> {
     return [...this.data.agents].sort((a, b) => b.registeredAt.localeCompare(a.registeredAt));
   }
 
-  getAgent(did: string): AgentRecord | undefined {
+  async getAgent(did: string): Promise<AgentRecord | undefined> {
     return this.data.agents.find((a) => a.did === did);
   }
 
-  getAgentByPublicKey(publicKey: string): AgentRecord | undefined {
+  async getAgentByPublicKey(publicKey: string): Promise<AgentRecord | undefined> {
     return this.data.agents.find((a) => a.publicKey.toLowerCase() === publicKey.toLowerCase());
   }
 
-  getOperator(email: string): OperatorRecord | undefined {
+  async getAgentByNameAndOperator(agentName: string, operatorEmail: string): Promise<AgentRecord | undefined> {
+    return this.data.agents.find(
+      (a) =>
+        a.agentName.toLowerCase() === agentName.toLowerCase() &&
+        a.operatorEmail.toLowerCase() === operatorEmail.toLowerCase(),
+    );
+  }
+
+  async getOperator(email: string): Promise<OperatorRecord | undefined> {
     return this.data.operators.find((o) => o.email.toLowerCase() === email.toLowerCase());
   }
 
-  getOperatorByToken(token: string): OperatorRecord | undefined {
+  async getOperatorByToken(token: string): Promise<OperatorRecord | undefined> {
     return this.data.operators.find((o) => o.token === token);
   }
 
@@ -108,7 +134,14 @@ export class KyxStore {
     await this.save();
   }
 
-  listSettlements(did?: string): SettlementRecord[] {
+  async updateAgentOnChainStatus(did: string, status: AgentRecord['onChainStatus']): Promise<void> {
+    const agent = this.data.agents.find((a) => a.did === did);
+    if (!agent || agent.onChainStatus === status) return;
+    agent.onChainStatus = status;
+    await this.save();
+  }
+
+  async listSettlements(did?: string): Promise<SettlementRecord[]> {
     return this.data.settlements
       .filter((s) => !did || s.did === did)
       .sort((a, b) => b.settledAt.localeCompare(a.settledAt));
@@ -121,7 +154,7 @@ export class KyxStore {
     }
   }
 
-  getTrust(did: string): TrustRecord | undefined {
+  async getTrust(did: string): Promise<TrustRecord | undefined> {
     return this.data.trust.find((t) => t.did === did);
   }
 

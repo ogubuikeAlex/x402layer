@@ -21,7 +21,7 @@ const SettlementEvent = z.object({
 export function registerSettlementRoutes(app: FastifyInstance, store: KyxStore, config: KyxConfig): void {
   app.get('/settlements', async (request) => {
     const did = (request.query as { did?: string }).did;
-    return { settlements: store.listSettlements(did) };
+    return { settlements: await store.listSettlements(did) };
   });
 
   app.post('/settlements', async (request, reply) => {
@@ -32,7 +32,7 @@ export function registerSettlementRoutes(app: FastifyInstance, store: KyxStore, 
         detail: parsed.error.issues.map((i) => i.message).join('; '),
       });
     }
-    if (!store.getAgent(parsed.data.did)) return reply.status(404).send({ error: 'AGENT_NOT_FOUND' });
+    if (!(await store.getAgent(parsed.data.did))) return reply.status(404).send({ error: 'AGENT_NOT_FOUND' });
     await store.addSettlement({
       settlementId: parsed.data.settlement_id,
       did: parsed.data.did,

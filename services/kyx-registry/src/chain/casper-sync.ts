@@ -1,17 +1,12 @@
 import type { ChainNetwork } from '@fourotwo/types';
 
 import type { KyxConfig } from '../config.js';
-import type { TrustRecord } from '../store.js';
+import type { KyxStore, TrustRecord } from '../store.js';
 import { CasperRegistryRecorder } from './casper-registry-recorder.js';
 
 export type OnChainStatus = 'recorded' | 'unconfigured' | 'failed';
 
-/**
- * Build the live registry recorder when both the deployed contract hash and a
- * service key are configured; otherwise return null so callers fall back to the
- * log-only path. The on-chain KyxRegistry is a Casper contract, so only Casper
- * agents are synced.
- */
+
 function buildRecorder(config: KyxConfig): CasperRegistryRecorder | null {
   const key = config.casper.secretKey ?? config.casper.secretKeyPath;
   if (!config.kyxRegistryContractHash || !key) return null;
@@ -49,6 +44,36 @@ export async function syncAgentRegistration(args: {
     publicKey: args.publicKey,
   });
   return result.recorded ? 'recorded' : 'failed';
+}
+
+export async function backfillOnChainRegistrations(
+  store: KyxStore,
+  config: KyxConfig,
+  log: { info: (msg: string) => void; warn: (msg: string) => void },
+): Promise<void> {
+  const recorder = buildRecorder(config);
+  if (!recorder) return;
+  const pending = (await store.listAgents()).filter(
+    (a) => a.network === 'casper' && a.onChainStatus !== 'recorded',
+  );
+  if (pending.length === 0) return;
+  log.info(`on-chain backfill: syncing ${pending.length} agent(s)`);
+  for (const agent of pending) {
+    try {
+      const result = await recorder.registerAgent({
+        did: agent.did,
+        operatorAccountHash: agent.walletAddress,
+        agentName: agent.agentName,
+        publicKey: agent.publicKey,
+      });
+      const status = result.recorded ? 'recorded' : 'failed';
+      await store.updateAgentOnChainStatus(agent.did, status);
+      log.info(`on-chain backfill: ${agent.did} → ${status}`);
+    } catch (err) {
+      await store.updateAgentOnChainStatus(agent.did, 'failed');
+      log.warn(`on-chain backfill: ${agent.did} failed - ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
 }
 
 export async function syncTrustScore(trust: TrustRecord, config: KyxConfig): Promise<void> {

@@ -50,17 +50,17 @@ function toSummary(record: TrustRecord): AgentTrustSummary {
 export function registerTrustRoutes(app: FastifyInstance, store: KyxStore, config: KyxConfig): void {
   app.get('/trust/:did', async (request, reply) => {
     const did = decodeURIComponent((request.params as { did: string }).did);
-    const agent = store.getAgent(did);
+    const agent = await store.getAgent(did);
     if (!agent) return reply.status(404).send({ error: 'AGENT_NOT_FOUND' });
-    const trust = store.getTrust(did) ?? (await computeAndPersistTrustScore(did, store, config));
+    const trust = (await store.getTrust(did)) ?? (await computeAndPersistTrustScore(did, store, config));
     return toTrustScore(trust);
   });
 
   app.get('/trust/:did/summary', async (request, reply) => {
     const did = decodeURIComponent((request.params as { did: string }).did);
-    const agent = store.getAgent(did);
+    const agent = await store.getAgent(did);
     if (!agent) return reply.status(404).send({ error: 'AGENT_NOT_FOUND' });
-    const trust = store.getTrust(did) ?? (await computeAndPersistTrustScore(did, store, config));
+    const trust = (await store.getTrust(did)) ?? (await computeAndPersistTrustScore(did, store, config));
     return toSummary(trust);
   });
 }

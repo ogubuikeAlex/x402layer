@@ -15,22 +15,27 @@ const RegisterAgent = z.object({
 });
 
 export function registerAgentRoutes(app: FastifyInstance, store: KyxStore, config: KyxConfig): void {
-  app.get('/agents', async () => ({
-    agents: store.listAgents().map((agent) => ({
-      ...agent,
-      trust: store.getTrust(agent.did),
-      settlements: store.listSettlements(agent.did).slice(0, 5),
-    })),
-  }));
+  app.get('/agents', async () => {
+    const agents = await store.listAgents();
+    return {
+      agents: await Promise.all(
+        agents.map(async (agent) => ({
+          ...agent,
+          trust: await store.getTrust(agent.did),
+          settlements: (await store.listSettlements(agent.did)).slice(0, 5),
+        })),
+      ),
+    };
+  });
 
   app.get('/agents/:did', async (request, reply) => {
     const did = decodeURIComponent((request.params as { did: string }).did);
-    const agent = store.getAgent(did);
+    const agent = await store.getAgent(did);
     if (!agent) return reply.status(404).send({ error: 'AGENT_NOT_FOUND' });
     return {
       agent,
-      trust: store.getTrust(did),
-      settlements: store.listSettlements(did),
+      trust: await store.getTrust(did),
+      settlements: await store.listSettlements(did),
     };
   });
 
@@ -42,17 +47,20 @@ export function registerAgentRoutes(app: FastifyInstance, store: KyxStore, confi
         detail: parsed.error.issues.map((i) => i.message).join('; '),
       });
     }
-    const operator = store.getOperator(parsed.data.operator_email);
+    const operator = await store.getOperator(parsed.data.operator_email);
     if (!operator?.verified) {
       return reply.status(403).send({ error: 'OPERATOR_NOT_VERIFIED' });
     }
-    if (store.getAgentByPublicKey(parsed.data.public_key)) {
+    if (await store.getAgentByNameAndOperator(parsed.data.agent_name, parsed.data.operator_email)) {
+      return reply.status(409).send({ error: 'AGENT_NAME_ALREADY_REGISTERED' });
+    }
+    if (await store.getAgentByPublicKey(parsed.data.public_key)) {
       return reply.status(409).send({ error: 'PUBLIC_KEY_ALREADY_REGISTERED' });
     }
 
     const did = deriveDid(parsed.data.network, parsed.data.public_key);
     const walletAddress = deriveAddress(parsed.data.network, parsed.data.public_key);
-    if (store.getAgent(did)) return reply.status(409).send({ error: 'DID_ALREADY_REGISTERED' });
+    if (await store.getAgent(did)) return reply.status(409).send({ error: 'DID_ALREADY_REGISTERED' });
 
     const onChainStatus = await syncAgentRegistration({
       did,
@@ -63,6 +71,7 @@ export function registerAgentRoutes(app: FastifyInstance, store: KyxStore, confi
       operatorEmail: parsed.data.operator_email,
       config,
     });
+    
     const agent = {
       did,
       agentName: parsed.data.agent_name,

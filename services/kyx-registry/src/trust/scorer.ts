@@ -1,6 +1,6 @@
 import { tierForScore } from '@fourotwo/types';
 
-import type { AgentRecord, KyxStore, TrustRecord } from '../store.js';
+import type { AgentRecord, KyxStore, OperatorRecord, SettlementRecord, TrustRecord } from '../store.js';
 import { syncTrustScore } from '../chain/casper-sync.js';
 import type { KyxConfig } from '../config.js';
 
@@ -10,13 +10,18 @@ export interface DimensionResult {
   weight: number;
 }
 
+export interface TrustContext {
+  agent: AgentRecord;
+  operator: OperatorRecord | undefined;
+  settlements: SettlementRecord[];
+}
+
 export interface TrustDimensionCalculator {
-  calculate(agent: AgentRecord, store: KyxStore): DimensionResult;
+  calculate(ctx: TrustContext): DimensionResult;
 }
 
 export class CompletionRateCalculator implements TrustDimensionCalculator {
-  calculate(agent: AgentRecord, store: KyxStore): DimensionResult {
-    const settlements = store.listSettlements(agent.did);
+  calculate({ settlements }: TrustContext): DimensionResult {
     if (settlements.length === 0) return { key: 'completionRate', score: 100, weight: 0.5 };
     const successful = settlements.filter((s) => s.status === 'confirmed' || s.status === 'pending').length;
     return { key: 'completionRate', score: (successful / settlements.length) * 100, weight: 0.5 };
@@ -24,15 +29,14 @@ export class CompletionRateCalculator implements TrustDimensionCalculator {
 }
 
 export class OperatorVerifiedCalculator implements TrustDimensionCalculator {
-  calculate(agent: AgentRecord, store: KyxStore): DimensionResult {
-    const operator = store.getOperator(agent.operatorEmail);
+  calculate({ operator }: TrustContext): DimensionResult {
     return { key: 'operatorVerified', score: operator?.verified ? 100 : 0, weight: 0.3 };
   }
 }
 
 export class VolumeTierCalculator implements TrustDimensionCalculator {
-  calculate(agent: AgentRecord, store: KyxStore): DimensionResult {
-    const count = store.listSettlements(agent.did).length;
+  calculate({ settlements }: TrustContext): DimensionResult {
+    const count = settlements.length;
     const score = count >= 25 ? 100 : count >= 10 ? 75 : count >= 3 ? 50 : count >= 1 ? 25 : 0;
     return { key: 'volumeTier', score, weight: 0.2 };
   }
@@ -43,16 +47,20 @@ export async function computeAndPersistTrustScore(
   store: KyxStore,
   config: KyxConfig,
 ): Promise<TrustRecord> {
-  const agent = store.getAgent(did);
+  const agent = await store.getAgent(did);
   if (!agent) throw new Error(`Unknown DID ${did}`);
+  const [operator, settlements] = await Promise.all([
+    store.getOperator(agent.operatorEmail),
+    store.listSettlements(did),
+  ]);
+  const ctx: TrustContext = { agent, operator, settlements };
   const calculators: TrustDimensionCalculator[] = [
     new CompletionRateCalculator(),
     new OperatorVerifiedCalculator(),
     new VolumeTierCalculator(),
   ];
-  const dimensions = calculators.map((c) => c.calculate(agent, store));
+  const dimensions = calculators.map((c) => c.calculate(ctx));
   const score = Math.round(dimensions.reduce((sum, d) => sum + d.score * d.weight, 0));
-  const settlements = store.listSettlements(did);
   const totalVolumeUsd = settlements.reduce((sum, s) => sum + Number(s.amount) / 1_000_000, 0);
   const trust: TrustRecord = {
     did,

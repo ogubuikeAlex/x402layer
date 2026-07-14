@@ -3,6 +3,7 @@ import type { TrustScore } from '@fourotwo/types';
 export const KYX_REGISTRY_URL = process.env.KYX_REGISTRY_URL ?? 'http://localhost:4002';
 export const NEXT_PUBLIC_KYX_REGISTRY_URL =
   process.env.NEXT_PUBLIC_KYX_REGISTRY_URL ?? KYX_REGISTRY_URL;
+const KYX_FETCH_TIMEOUT_MS = Number(process.env.KYX_FETCH_TIMEOUT_MS ?? 3500);
 
 export interface DashboardAgent {
   did: string;
@@ -50,15 +51,41 @@ export interface AgentListItem {
   settlements: DashboardSettlement[];
 }
 
-export async function getAgents(): Promise<AgentListItem[]> {
+export type AgentsFetchStatus = 'ok' | 'unavailable' | 'timeout';
+
+export interface AgentsFetchResult {
+  agents: AgentListItem[];
+  status: AgentsFetchStatus;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
+async function fetchWithTimeout(input: string, init: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), KYX_FETCH_TIMEOUT_MS);
+
   try {
-    const res = await fetch(`${KYX_REGISTRY_URL}/agents`, { cache: 'no-store' });
-    if (!res.ok) return [];
-    const body = (await res.json()) as { agents: AgentListItem[] };
-    return body.agents;
-  } catch {
-    return [];
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
   }
+}
+
+export async function getAgentsResult(): Promise<AgentsFetchResult> {
+  try {
+    const res = await fetchWithTimeout(`${KYX_REGISTRY_URL}/agents`, { cache: 'no-store' });
+    if (!res.ok) return { agents: [], status: 'unavailable' };
+    const body = (await res.json()) as { agents: AgentListItem[] };
+    return { agents: body.agents, status: 'ok' };
+  } catch (error) {
+    return { agents: [], status: isAbortError(error) ? 'timeout' : 'unavailable' };
+  }
+}
+
+export async function getAgents(): Promise<AgentListItem[]> {
+  return (await getAgentsResult()).agents;
 }
 
 export async function getAgentDetail(did: string): Promise<{
@@ -68,8 +95,8 @@ export async function getAgentDetail(did: string): Promise<{
 } | null> {
   try {
     const [agentRes, trustRes] = await Promise.all([
-      fetch(`${KYX_REGISTRY_URL}/agents/${encodeURIComponent(did)}`, { cache: 'no-store' }),
-      fetch(`${KYX_REGISTRY_URL}/trust/${encodeURIComponent(did)}`, { cache: 'no-store' }),
+      fetchWithTimeout(`${KYX_REGISTRY_URL}/agents/${encodeURIComponent(did)}`, { cache: 'no-store' }),
+      fetchWithTimeout(`${KYX_REGISTRY_URL}/trust/${encodeURIComponent(did)}`, { cache: 'no-store' }),
     ]);
     if (!agentRes.ok) return null;
     const agentBody = (await agentRes.json()) as {

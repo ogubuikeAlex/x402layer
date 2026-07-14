@@ -32,21 +32,25 @@ export interface KyxConfig {
   host: string;
   logLevel: string;
   dataFile: string;
+  mongodbUri: string | undefined;
+  mongodbDb: string;
   publicUrl: string;
   kyxRegistryContractHash: string | undefined;
-  /** Allowed CORS origins. `['*']` allows any origin (browser dashboard calls). */
   corsOrigins: string[];
-  /** On-chain write (register_agent / update_trust_score) broadcaster config. */
+  mail: {
+    host: string;
+    port: number;
+    user: string | undefined;
+    pass: string | undefined;
+    from: string;
+  };
+  devTokenEmails: string[];
   casper: {
-    /** Casper node JSON-RPC endpoints, tried in order until one succeeds. */
     nodeRpcs: string[];
     chainName: string;
-    /** Service-account key material directly (PEM, or base64-of-PEM). */
     secretKey: string | undefined;
-    /** Path to the service-account secret key PEM (fallback to {@link secretKey}). */
     secretKeyPath: string | undefined;
     keyAlgorithm: 'ed25519' | 'secp256k1';
-    /** Gas payment in motes for a register/update call (default 10 CSPR). */
     paymentMotes: number;
   };
 }
@@ -62,7 +66,17 @@ export function loadConfig(): KyxConfig {
     host: process.env.KYX_HOST ?? '0.0.0.0',
     logLevel: process.env.LOG_LEVEL ?? 'info',
     dataFile: process.env.KYX_DATA_FILE ?? resolve(process.cwd(), 'services/kyx-registry/.data/kyx.json'),
+    mongodbUri: process.env.MONGODB_URI || undefined,
+    mongodbDb: process.env.MONGODB_DB ?? 'fourotwo-kyx',
     publicUrl: process.env.KYX_PUBLIC_URL ?? 'http://localhost:4002',
+    mail: {
+      host: process.env.SMTP_HOST ?? 'smtp.gmail.com',
+      port: Number(process.env.SMTP_PORT ?? 465),
+      user: process.env.SMTP_USER || undefined,
+      pass: process.env.SMTP_PASS || undefined,
+      from: process.env.MAIL_FROM || process.env.SMTP_USER || 'fourotwo KYX <no-reply@fourotwo.dev>',
+    },
+    devTokenEmails: parseList(process.env.KYX_DEV_TOKEN_EMAILS).map((e) => e.toLowerCase()),
     kyxRegistryContractHash: process.env.KYX_REGISTRY_CONTRACT_HASH || undefined,
     corsOrigins:
       parseList(process.env.KYX_CORS_ORIGIN).length > 0
