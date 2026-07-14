@@ -4,6 +4,9 @@ const config: Config = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      screens: {
+        nav: '821px',
+      },
       colors: {
         bg: 'var(--bg)',
         bg2: 'var(--bg2)',
