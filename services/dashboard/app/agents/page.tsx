@@ -1,14 +1,15 @@
 import Link from 'next/link';
 
 import { AgentRegistration } from '@/components/AgentRegistration';
-import { TransactionTable } from '@/components/TransactionTable';
+import { AgentTransactions } from '@/components/AgentTransactions';
 import { TrustScoreCard } from '@/components/TrustScoreCard';
-import { getAgents } from '@/lib/kyx';
+import { getAgentsResult } from '@/lib/kyx';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AgentsPage() {
-  const agents = await getAgents();
+  const { agents, status } = await getAgentsResult();
+  const registryUnavailable = status !== 'ok';
 
   return (
     <div className="space-y-10">
@@ -26,10 +27,19 @@ export default async function AgentsPage() {
       <section className="space-y-5">
         <div className="flex items-center justify-between gap-4">
           <h2 className="font-display text-2xl font-extrabold">Registered agents</h2>
-          <span className="text-[10px] uppercase tracking-wide2 text-text-dim">{agents.length} total</span>
+          <span className="text-[10px] uppercase tracking-wide2 text-text-dim">
+            {registryUnavailable ? status : `${agents.length} total`}
+          </span>
         </div>
 
-        {agents.length === 0 ? (
+        {registryUnavailable ? (
+          <div className="border border-hairline bg-surface/60 p-6 text-[12px] leading-relaxed text-text-mid">
+            <div className="mb-2 text-[10px] uppercase tracking-wide2 text-accent">
+              {status === 'timeout' ? 'KYX registry is taking too long' : 'KYX registry unavailable'}
+            </div>
+            The dashboard stopped waiting so this page stays responsive. Check that the KYX registry is running ,then refresh to load registered agents.
+          </div>
+        ) : agents.length === 0 ? (
           <div className="border border-dashed border-hairline bg-surface/40 p-10 text-center text-[12px] text-text-dim">
             Start the KYX registry, then register an agent above.
           </div>
@@ -56,7 +66,7 @@ export default async function AgentsPage() {
                     </Link>
                   </div>
                   <div className="mt-5">
-                    <TransactionTable settlements={agent.settlements} />
+                    <AgentTransactions did={agent.did} initialSettlements={agent.settlements} />
                   </div>
                 </div>
                 <TrustScoreCard trust={agent.trust} />

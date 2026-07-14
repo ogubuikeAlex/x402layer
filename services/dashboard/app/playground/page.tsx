@@ -17,7 +17,7 @@ interface DemoResult {
 }
 
 export default function PlaygroundPage() {
-  const [amount, setAmount] = useState('5000');
+  const [amount, setAmount] = useState('10');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DemoResult | null>(null);
 

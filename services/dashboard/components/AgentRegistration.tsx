@@ -30,11 +30,22 @@ export function AgentRegistration() {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ email }),
     });
-    const verify = (await verifyRes.json()) as { dev_token?: string; error?: string };
-    if (!verifyRes.ok || !verify.dev_token) throw new Error(verify.error ?? 'verification failed');
+    const verify = (await verifyRes.json()) as {
+      dev_token?: string;
+      email_sent?: boolean;
+      already_verified?: boolean;
+      error?: string;
+    };
+    if (!verifyRes.ok) throw new Error(verify.error ?? 'verification failed');
 
-    setStatus('confirming local magic link...');
-    await fetch(`${NEXT_PUBLIC_KYX_REGISTRY_URL}/operators/verify/${verify.dev_token}`);
+    if (verify.email_sent) {
+      setStatus('verification email sent - open the link in your inbox, then press the button again to finish registration.');
+      return;
+    }
+    if (verify.dev_token) {
+      setStatus('confirming local magic link...');
+      await fetch(`${NEXT_PUBLIC_KYX_REGISTRY_URL}/operators/verify/${verify.dev_token}`);
+    }
 
     const secret = new Uint8Array(32);
     crypto.getRandomValues(secret);
