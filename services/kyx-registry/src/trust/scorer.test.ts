@@ -16,6 +16,8 @@ const testConfig: KyxConfig = {
   publicUrl: '',
   kyxRegistryContractHash: undefined,
   corsOrigins: ['*'],
+  facilitatorToken: undefined,
+  adminToken: undefined,
   mail: { host: 'smtp.gmail.com', port: 465, user: undefined, pass: undefined, from: 'test' },
   devTokenEmails: [],
   casper: {
@@ -29,7 +31,7 @@ const testConfig: KyxConfig = {
 };
 
 describe('trust scorer', () => {
-  it('scores a verified new agent without transaction history', async () => {
+  it('does not grant a trusted score to a verified agent with zero transaction history', async () => {
     const store = new FileKyxStore(join(tmpdir(), `fourotwo-kyx-test-${Date.now()}.json`));
     await store.init();
     await store.upsertOperator({ email: 'a@example.com', verified: true });
@@ -44,6 +46,7 @@ describe('trust scorer', () => {
       onChainStatus: 'unconfigured',
     });
     const trust = await computeAndPersistTrustScore('did:fourotwo:casper:abc', store, testConfig);
-    expect(trust.score).toBe(80);
+    expect(trust.score).toBe(30);
+    expect(trust.completionRate).toBe(0);
   });
 });

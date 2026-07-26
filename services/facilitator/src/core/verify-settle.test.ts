@@ -43,7 +43,8 @@ function mockCasperClient(balance = 10_000_000_000n): CasperRpcClient {
 }
 
 function buildTestContext(client = mockCasperClient()): AppContext {
-  const config = loadConfig();
+  // Force in-memory stores so the tests never touch an ambient MONGODB_URI.
+  const config = { ...loadConfig(), mongodbUri: undefined };
   const adapters = new AdapterRegistry([new CasperAdapter(client)]);
   // Inject a deterministic trust client so the round-trip tests don't depend on
   // ambient .env (which may enable the on-chain/HTTP trust clients that make
