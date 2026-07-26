@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { TransactionTable } from './TransactionTable';
 import { NEXT_PUBLIC_KYX_REGISTRY_URL, type DashboardSettlement } from '@/lib/kyx';
@@ -15,6 +15,13 @@ export function AgentTransactions({
   const [settlements, setSettlements] = useState(initialSettlements);
   const [refreshing, setRefreshing] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+
+  // A soft navigation to another agent re-renders this component with new props
+  // but keeps the mounted state. Resync so the card never shows a stale snapshot.
+  useEffect(() => {
+    setSettlements(initialSettlements);
+    setNote(null);
+  }, [did, initialSettlements]);
 
   async function refresh() {
     setRefreshing(true);

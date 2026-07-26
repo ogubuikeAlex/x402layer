@@ -1,7 +1,11 @@
+import { fetchWithTimeout } from '@fourotwo/types';
+
 export interface BalanceResult {
   balanceMotes: string | null;
   error?: string;
 }
+
+const CSPR_TIMEOUT_MS = 5_000;
 
 const NODE_RPCS = [
   ...(process.env.CASPER_NODE_RPC ? [process.env.CASPER_NODE_RPC] : []),
@@ -11,8 +15,9 @@ const NODE_RPCS = [
 
 async function balanceFromCsprCloud(accountHashHex: string, apiKey: string): Promise<string> {
   const baseUrl = process.env.CSPR_CLOUD_API_URL ?? 'https://api.testnet.cspr.cloud';
-  const res = await fetch(`${baseUrl}/accounts/${accountHashHex}`, {
+  const res = await fetchWithTimeout(fetch, `${baseUrl}/accounts/${accountHashHex}`, {
     cache: 'no-store',
+    timeoutMs: CSPR_TIMEOUT_MS,
     headers: { accept: 'application/json', authorization: apiKey },
   });
   if (!res.ok) throw new Error(`CSPR.cloud ${res.status}`);
@@ -21,9 +26,10 @@ async function balanceFromCsprCloud(accountHashHex: string, apiKey: string): Pro
 }
 
 async function balanceFromRpc(accountHashHex: string, nodeRpc: string): Promise<string> {
-  const res = await fetch(nodeRpc, {
+  const res = await fetchWithTimeout(fetch, nodeRpc, {
     method: 'POST',
     cache: 'no-store',
+    timeoutMs: CSPR_TIMEOUT_MS,
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       jsonrpc: '2.0',
@@ -63,6 +69,19 @@ export async function getCasperBalance(accountHashHex: string): Promise<BalanceR
 
 export function formatCspr(motes: string | null): string {
   if (motes === null) return 'unavailable';
-  const cspr = Number(motes) / 1_000_000_000;
-  return `${cspr.toLocaleString(undefined, { maximumFractionDigits: 4 })} CSPR`;
+  let value: bigint;
+  try {
+    value = BigInt(motes);
+  } catch {
+    return 'unavailable';
+  }
+  // BigInt math preserves integer precision above 2^53 motes (~9M CSPR), which
+  // plain Number(motes) silently corrupts.
+  const base = 1_000_000_000n;
+  const whole = value / base;
+  const frac = ((value % base) * 10_000n) / base; // 4 decimal places
+  const fracStr = frac.toString().padStart(4, '0').replace(/0+$/, '');
+  // whole is a count of CSPR (<= total supply, well within Number's safe range).
+  const wholeStr = Number(whole).toLocaleString();
+  return fracStr ? `${wholeStr}.${fracStr} CSPR` : `${wholeStr} CSPR`;
 }

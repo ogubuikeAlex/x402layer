@@ -38,7 +38,7 @@ export function TrustScoreCard({ trust }: { trust?: TrustScore | CompactTrust })
   if (!t) {
     return (
       <div className="border border-hairline bg-surface p-5 text-[12px] text-text-dim">
-        Trust score unavailable. Start the KYX registry on port 4002.
+        Trust score unavailable right now. Please try again shortly.
       </div>
     );
   }

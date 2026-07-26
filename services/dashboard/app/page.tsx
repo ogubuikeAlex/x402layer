@@ -14,6 +14,21 @@ const LOOP = [
   { num: '04', step: 'score', desc: 'Trust score recomputed for the paying agent.' },
 ];
 
+const EXTEND = [
+  {
+    title: 'Adds identity + trust',
+    desc: 'Every agent gets an on-chain DID and a portable trust score, checked before the payment settles.',
+  },
+  {
+    title: 'Adds provable settlement',
+    desc: 'A facilitator-signed receipt and an on-chain SettlementVault record on top of the raw settle.',
+  },
+  {
+    title: 'Can delegate settlement',
+    desc: "Optionally hands the on-chain settle to Casper's facilitator (CEP-18 / EIP-712) and keeps trust + batching on top.",
+  },
+];
+
 export default async function OverviewPage() {
   const status = await getFacilitatorStatus();
   const networks = status.supported?.networks ?? [];
@@ -152,6 +167,43 @@ export default async function OverviewPage() {
             <Metric value={<Counter to={2} />} label="chains supported" desc="Casper (primary) + Base (fallback)" />
             <Metric value={<Counter to={3} />} label="trust dimensions" desc="completion · operator KYC · volume" />
             <Metric value={<Counter to={2} />} label="on-chain contracts" desc="KyxRegistry + SettlementVault" />
+          </div>
+        </Reveal>
+      </section>
+
+      {/* ── EXTENDS THE CASPER x402 FACILITATOR ────────────── */}
+      <section>
+        <Reveal>
+          <div className="section-label mb-4">extends casper</div>
+          <h2 className="section-heading mb-6">
+            Not a competitor to the Casper
+            <br />
+            x402 Facilitator — the trust layer on top.
+          </h2>
+          <p className="mb-12 max-w-xl font-serif text-[16px] font-light leading-relaxed text-text-mid">
+            layer402 builds on Casper&apos;s official{' '}
+            <a
+              href="https://docs.cspr.cloud/x402-facilitator-api"
+              target="_blank"
+              rel="noreferrer"
+              className="text-accent underline decoration-1 underline-offset-2"
+            >
+              x402 Facilitator
+            </a>{' '}
+            (part of the Casper AI Toolkit) — adding the identity, trust, and settlement-record layer
+            the raw facilitator doesn&apos;t provide, and optionally settling straight through it.
+          </p>
+        </Reveal>
+        <Reveal delay={80}>
+          <div className="grid hairline-grid sm:grid-cols-3">
+            {EXTEND.map((e) => (
+              <div key={e.title} className="bg-surface p-7 transition-colors hover:bg-surface2">
+                <div className="font-display text-[13px] font-bold uppercase tracking-wide text-accent">
+                  {e.title}
+                </div>
+                <p className="mt-3 text-[12px] leading-relaxed text-text-dim">{e.desc}</p>
+              </div>
+            ))}
           </div>
         </Reveal>
       </section>

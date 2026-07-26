@@ -1,15 +1,24 @@
 import Link from 'next/link';
 
 import { AgentRegistration } from '@/components/AgentRegistration';
+import { AgentSearch } from '@/components/AgentSearch';
 import { AgentTransactions } from '@/components/AgentTransactions';
 import { TrustScoreCard } from '@/components/TrustScoreCard';
 import { getAgentsResult } from '@/lib/kyx';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AgentsPage() {
-  const { agents, status } = await getAgentsResult();
+export default async function AgentsPage({
+  searchParams,
+}: {
+  searchParams: { q?: string; page?: string };
+}) {
+  const q = searchParams.q?.trim() || undefined;
+  const requestedPage = Math.max(1, Number(searchParams.page) || 1);
+  const { agents, total, page, limit, status } = await getAgentsResult({ q, page: requestedPage });
   const registryUnavailable = status !== 'ok';
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const pageHref = (p: number) => `/agents?${new URLSearchParams({ ...(q ? { q } : {}), page: String(p) })}`;
 
   return (
     <div className="space-y-10">
@@ -17,7 +26,7 @@ export default async function AgentsPage() {
         <div className="section-label mb-4">agents</div>
         <h1 className="section-heading mb-4">Register, score, audit.</h1>
         <p className="max-w-2xl font-serif text-[16px] leading-relaxed text-text-mid">
-          Client-side key generation, email-only operator verification, local KYX registry storage,
+          Client-side key generation, magic-link operator verification, durable KYX registry storage,
           and trust scoring after every settlement.
         </p>
       </header>
@@ -25,12 +34,14 @@ export default async function AgentsPage() {
       <AgentRegistration />
 
       <section className="space-y-5">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 className="font-display text-2xl font-extrabold">Registered agents</h2>
           <span className="text-[10px] uppercase tracking-wide2 text-text-dim">
-            {registryUnavailable ? status : `${agents.length} total`}
+            {registryUnavailable ? status : `${total} total`}
           </span>
         </div>
+
+        <AgentSearch initialQuery={q ?? ''} />
 
         {registryUnavailable ? (
           <div className="border border-hairline bg-surface/60 p-6 text-[12px] leading-relaxed text-text-mid">
@@ -41,7 +52,7 @@ export default async function AgentsPage() {
           </div>
         ) : agents.length === 0 ? (
           <div className="border border-dashed border-hairline bg-surface/40 p-10 text-center text-[12px] text-text-dim">
-            Start the KYX registry, then register an agent above.
+            {q ? `No agents match "${q}".` : 'Start the KYX registry, then register an agent above.'}
           </div>
         ) : (
           <div className="grid gap-5">
@@ -56,7 +67,7 @@ export default async function AgentsPage() {
                   </div>
                   <code className="mt-3 block break-all text-[11px] text-accent">{agent.did}</code>
                   <dl className="mt-5 grid gap-3 text-[11px] sm:grid-cols-3">
-                    <Field label="operator" value={agent.operatorEmail} />
+                    <Field label="operator" value={`@${agent.operatorUsername}`} />
                     <Field label="network" value={agent.network} />
                     <Field label="wallet" value={agent.walletAddress} />
                   </dl>
@@ -73,6 +84,22 @@ export default async function AgentsPage() {
               </article>
             ))}
           </div>
+        )}
+
+        {!registryUnavailable && totalPages > 1 && (
+          <nav className="flex items-center justify-between border-t border-hairline pt-4 text-[10px] uppercase tracking-wide2">
+            {page > 1 ? (
+              <Link href={pageHref(page - 1)} className="text-accent">← prev</Link>
+            ) : (
+              <span className="text-text-dim opacity-40">← prev</span>
+            )}
+            <span className="text-text-dim">page {page} of {totalPages}</span>
+            {page < totalPages ? (
+              <Link href={pageHref(page + 1)} className="text-accent">next →</Link>
+            ) : (
+              <span className="text-text-dim opacity-40">next →</span>
+            )}
+          </nav>
         )}
       </section>
     </div>
