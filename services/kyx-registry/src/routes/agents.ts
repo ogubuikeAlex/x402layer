@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { deriveAddress, deriveDid } from '@fourotwo/types';
 
 import type { KyxConfig } from '../config.js';
-import type { KyxStore } from '../store.js';
+import { metrics } from '../metrics.js';
+import { isDuplicateKeyError, type AgentRecord, type KyxStore } from '../store.js';
 import { syncAgentRegistration } from '../chain/casper-sync.js';
 import { computeAndPersistTrustScore } from '../trust/scorer.js';
 
@@ -14,17 +15,35 @@ const RegisterAgent = z.object({
   network: z.enum(['casper', 'base']),
 });
 
+const ListQuery = z.object({
+  q: z.string().max(120).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+});
+
+async function toPublicAgent(agent: AgentRecord, store: KyxStore) {
+  const operator = await store.getOperator(agent.operatorEmail);
+  const { operatorEmail: _hidden, ...rest } = agent;
+  return { ...rest, operatorUsername: operator?.username ?? 'anonymous' };
+}
+
 export function registerAgentRoutes(app: FastifyInstance, store: KyxStore, config: KyxConfig): void {
-  app.get('/agents', async () => {
-    const agents = await store.listAgents();
+  app.get('/agents', async (request, reply) => {
+    const parsed = ListQuery.safeParse(request.query);
+    if (!parsed.success) return reply.status(400).send({ error: 'MALFORMED_REQUEST' });
+    const { q, page, limit } = parsed.data;
+    const { agents, total } = await store.searchAgents({ q, offset: (page - 1) * limit, limit });
     return {
       agents: await Promise.all(
         agents.map(async (agent) => ({
-          ...agent,
+          ...(await toPublicAgent(agent, store)),
           trust: await store.getTrust(agent.did),
           settlements: (await store.listSettlements(agent.did)).slice(0, 5),
         })),
       ),
+      total,
+      page,
+      limit,
     };
   });
 
@@ -33,7 +52,7 @@ export function registerAgentRoutes(app: FastifyInstance, store: KyxStore, confi
     const agent = await store.getAgent(did);
     if (!agent) return reply.status(404).send({ error: 'AGENT_NOT_FOUND' });
     return {
-      agent,
+      agent: await toPublicAgent(agent, store),
       trust: await store.getTrust(did),
       settlements: await store.listSettlements(did),
     };
@@ -51,7 +70,7 @@ export function registerAgentRoutes(app: FastifyInstance, store: KyxStore, confi
     if (!operator?.verified) {
       return reply.status(403).send({ error: 'OPERATOR_NOT_VERIFIED' });
     }
-    if (await store.getAgentByNameAndOperator(parsed.data.agent_name, parsed.data.operator_email)) {
+    if (await store.getAgentByName(parsed.data.agent_name)) {
       return reply.status(409).send({ error: 'AGENT_NAME_ALREADY_REGISTERED' });
     }
     if (await store.getAgentByPublicKey(parsed.data.public_key)) {
@@ -82,7 +101,15 @@ export function registerAgentRoutes(app: FastifyInstance, store: KyxStore, confi
       registeredAt: new Date().toISOString(),
       onChainStatus,
     };
-    await store.addAgent(agent);
+    try {
+      await store.addAgent(agent);
+    } catch (err) {
+      if (isDuplicateKeyError(err)) {
+        return reply.status(409).send({ error: 'AGENT_ALREADY_REGISTERED' });
+      }
+      throw err;
+    }
+    metrics.inc('agents_registered_total', { network: parsed.data.network, onchain: onChainStatus });
     const trust = await computeAndPersistTrustScore(did, store, config);
     return reply.status(201).send({ agent, trust });
   });
