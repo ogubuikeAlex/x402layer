@@ -1,11 +1,23 @@
 import type { ChainNetwork } from '@fourotwo/types';
 
 import type { KyxConfig } from '../config.js';
+import { metrics } from '../metrics.js';
 import type { KyxStore, TrustRecord } from '../store.js';
 import { CasperRegistryRecorder } from './casper-registry-recorder.js';
 
 export type OnChainStatus = 'recorded' | 'unconfigured' | 'failed';
 
+const ONCHAIN_REGISTER_TIMEOUT_MS = 20_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+      timer.unref?.();
+    }),
+  ]);
+}
 
 function buildRecorder(config: KyxConfig): CasperRegistryRecorder | null {
   const key = config.casper.secretKey ?? config.casper.secretKeyPath;
@@ -37,12 +49,27 @@ export async function syncAgentRegistration(args: {
   const recorder = buildRecorder(args.config);
   if (!recorder) return 'unconfigured';
 
-  const result = await recorder.registerAgent({
-    did: args.did,
-    operatorAccountHash: args.walletAddress,
-    agentName: args.agentName,
-    publicKey: args.publicKey,
-  });
+
+  let result: { recorded: boolean };
+  try {
+    result = await withTimeout(
+      recorder.registerAgent({
+        did: args.did,
+        operatorAccountHash: args.walletAddress,
+        agentName: args.agentName,
+        publicKey: args.publicKey,
+      }),
+      ONCHAIN_REGISTER_TIMEOUT_MS,
+      'register_agent',
+    );
+  } catch (err) {
+    console.warn(
+      `[kyx-chain] register_agent failed for ${args.did}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    metrics.inc('onchain_writes_total', { entry_point: 'register_agent', recorded: 'false' });
+    return 'failed';
+  }
+  metrics.inc('onchain_writes_total', { entry_point: 'register_agent', recorded: String(result.recorded) });
   return result.recorded ? 'recorded' : 'failed';
 }
 
