@@ -2,6 +2,7 @@ import { MongoClient, type Collection, type Db } from 'mongodb';
 
 import type {
   AgentRecord,
+  AgentSearchResult,
   KyxStore,
   OperatorRecord,
   SettlementRecord,
@@ -40,11 +41,14 @@ export class MongoKyxStore implements KyxStore {
     await Promise.all([
       this.operators.createIndex({ email: 1 }, { unique: true, ...CI }),
       this.operators.createIndex({ token: 1 }, { sparse: true }),
+      this.operators
+        .createIndex({ username: 1 }, { unique: true, sparse: true, ...CI })
+        .catch((err) => console.warn('[kyx-store] operator username unique index not created:', err?.message)),
       this.agents.createIndex({ did: 1 }, { unique: true }),
       this.agents.createIndex({ publicKey: 1 }, CI),
       this.agents
-        .createIndex({ agentName: 1, operatorEmail: 1 }, { unique: true, ...CI })
-        .catch((err) => console.warn('[kyx-store] agentName+operatorEmail unique index not created:', err?.message)),
+        .createIndex({ agentName: 1 }, { unique: true, ...CI })
+        .catch((err) => console.warn('[kyx-store] agentName unique index not created:', err?.message)),
       this.settlements.createIndex({ settlementId: 1 }, { unique: true }),
       this.settlements.createIndex({ did: 1, settledAt: -1 }),
       this.trust.createIndex({ did: 1 }, { unique: true }),
@@ -59,6 +63,16 @@ export class MongoKyxStore implements KyxStore {
     return this.agents.find({}, NO_ID).sort({ registeredAt: -1 }).toArray();
   }
 
+  async searchAgents(opts: { q?: string; offset: number; limit: number }): Promise<AgentSearchResult> {
+    const q = opts.q?.trim();
+    const filter = q ? { agentName: { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } } : {};
+    const [agents, total] = await Promise.all([
+      this.agents.find(filter, NO_ID).sort({ registeredAt: -1 }).skip(opts.offset).limit(opts.limit).toArray(),
+      this.agents.countDocuments(filter),
+    ]);
+    return { agents, total };
+  }
+
   async getAgent(did: string): Promise<AgentRecord | undefined> {
     return strip(await this.agents.findOne({ did }, NO_ID));
   }
@@ -67,12 +81,16 @@ export class MongoKyxStore implements KyxStore {
     return strip(await this.agents.findOne({ publicKey }, { ...NO_ID, ...CI }));
   }
 
-  async getAgentByNameAndOperator(agentName: string, operatorEmail: string): Promise<AgentRecord | undefined> {
-    return strip(await this.agents.findOne({ agentName, operatorEmail }, { ...NO_ID, ...CI }));
+  async getAgentByName(agentName: string): Promise<AgentRecord | undefined> {
+    return strip(await this.agents.findOne({ agentName }, { ...NO_ID, ...CI }));
   }
 
   async getOperator(email: string): Promise<OperatorRecord | undefined> {
     return strip(await this.operators.findOne({ email }, { ...NO_ID, ...CI }));
+  }
+
+  async getOperatorByUsername(username: string): Promise<OperatorRecord | undefined> {
+    return strip(await this.operators.findOne({ username }, { ...NO_ID, ...CI }));
   }
 
   async getOperatorByToken(token: string): Promise<OperatorRecord | undefined> {

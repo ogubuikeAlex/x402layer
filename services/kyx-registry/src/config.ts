@@ -18,7 +18,16 @@ function loadDotEnv(path = resolve(process.cwd(), '.env')): void {
   }
 }
 
-/** Split a comma/whitespace-separated env list into trimmed, non-empty entries. */
+function num(name: string, value: string | undefined, fallback: number): number {
+  if (value === undefined || value.trim() === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    console.warn(`[config] ${name}="${value}" is not a number; using ${fallback}`);
+    return fallback;
+  }
+  return parsed;
+}
+
 function parseList(value: string | undefined): string[] {
   if (!value) return [];
   return value
@@ -37,6 +46,8 @@ export interface KyxConfig {
   publicUrl: string;
   kyxRegistryContractHash: string | undefined;
   corsOrigins: string[];
+  facilitatorToken: string | undefined;
+  adminToken: string | undefined;
   mail: {
     host: string;
     port: number;
@@ -61,8 +72,15 @@ export function loadConfig(): KyxConfig {
     ...parseList(process.env.CASPER_NODE_RPC),
     ...parseList(process.env.CASPER_NODE_RPC_FALLBACKS),
   ];
+  const corsOrigins = parseList(process.env.KYX_CORS_ORIGIN);
+  if (corsOrigins.length === 0) {
+    console.warn(
+      '[config] KYX_CORS_ORIGIN not set; defaulting to localhost dashboard origins only. ' +
+        'Set it explicitly in production.',
+    );
+  }
   return {
-    port: Number(process.env.KYX_PORT ?? 4002),
+    port: num('KYX_PORT', process.env.KYX_PORT, 4002),
     host: process.env.KYX_HOST ?? '0.0.0.0',
     logLevel: process.env.LOG_LEVEL ?? 'info',
     dataFile: process.env.KYX_DATA_FILE ?? resolve(process.cwd(), 'services/kyx-registry/.data/kyx.json'),
@@ -71,7 +89,7 @@ export function loadConfig(): KyxConfig {
     publicUrl: process.env.KYX_PUBLIC_URL ?? 'http://localhost:4002',
     mail: {
       host: process.env.SMTP_HOST ?? 'smtp.gmail.com',
-      port: Number(process.env.SMTP_PORT ?? 465),
+      port: num('SMTP_PORT', process.env.SMTP_PORT, 465),
       user: process.env.SMTP_USER || undefined,
       pass: process.env.SMTP_PASS || undefined,
       from: process.env.MAIL_FROM || process.env.SMTP_USER || 'fourotwo KYX <no-reply@fourotwo.dev>',
@@ -79,9 +97,11 @@ export function loadConfig(): KyxConfig {
     devTokenEmails: parseList(process.env.KYX_DEV_TOKEN_EMAILS).map((e) => e.toLowerCase()),
     kyxRegistryContractHash: process.env.KYX_REGISTRY_CONTRACT_HASH || undefined,
     corsOrigins:
-      parseList(process.env.KYX_CORS_ORIGIN).length > 0
-        ? parseList(process.env.KYX_CORS_ORIGIN)
-        : ['*'],
+      corsOrigins.length > 0
+        ? corsOrigins
+        : ['http://localhost:3000', 'http://localhost:3001'],
+    facilitatorToken: process.env.KYX_FACILITATOR_TOKEN || undefined,
+    adminToken: process.env.KYX_ADMIN_TOKEN || undefined,
     casper: {
       nodeRpcs: nodeRpcs.length > 0 ? nodeRpcs : ['https://rpc.testnet.casperlabs.io/rpc'],
       chainName: process.env.CASPER_CHAIN_NAME ?? 'casper-test',
@@ -92,7 +112,7 @@ export function loadConfig(): KyxConfig {
         (process.env.KYX_REGISTRY_KEY_ALGORITHM ?? process.env.FACILITATOR_KEY_ALGORITHM) === 'secp256k1'
           ? 'secp256k1'
           : 'ed25519',
-      paymentMotes: Number(process.env.KYX_REGISTRY_PAYMENT_MOTES ?? 10_000_000_000),
+      paymentMotes: num('KYX_REGISTRY_PAYMENT_MOTES', process.env.KYX_REGISTRY_PAYMENT_MOTES, 10_000_000_000),
     },
   };
 }
