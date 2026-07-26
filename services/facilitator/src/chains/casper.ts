@@ -2,7 +2,7 @@ import { sha512 } from '@noble/hashes/sha2';
 import * as ed25519 from '@noble/ed25519';
 import { hexToBytes } from '@noble/hashes/utils';
 import type { PaymentPayload } from '@fourotwo/types';
-import { canonicalPaymentBytes } from '@fourotwo/types';
+import { canonicalPaymentBytes, fetchWithTimeout } from '@fourotwo/types';
 
 import type { ChainAdapter, SettlementResult, TxStatus } from './types.js';
 import { decodeSignature, isHex } from './signature-util.js';
@@ -97,7 +97,8 @@ export class CsprCloudCasperClient implements CasperRpcClient {
   ) {}
 
   private get fetch(): typeof fetch {
-    return this.opts.fetchImpl ?? fetch;
+    const impl = this.opts.fetchImpl ?? fetch;
+    return ((input, init) => fetchWithTimeout(impl, input as string | URL | Request, init ?? {})) as typeof fetch;
   }
 
   /** All configured RPC endpoints, primary first. */

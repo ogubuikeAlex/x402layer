@@ -2,6 +2,7 @@ import { secp256k1 } from '@noble/curves/secp256k1';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import type { PaymentPayload } from '@fourotwo/types';
+import { fetchWithTimeout } from '@fourotwo/types';
 
 import type { ChainAdapter, SettlementResult, TxStatus } from './types.js';
 import { SettlementUnconfiguredError } from './casper.js';
@@ -151,7 +152,8 @@ export class JsonRpcBaseClient implements BaseRpcClient {
   ) {}
 
   private get fetch(): typeof fetch {
-    return this.opts.fetchImpl ?? fetch;
+    const impl = this.opts.fetchImpl ?? fetch;
+    return ((input, init) => fetchWithTimeout(impl, input as string | URL | Request, init ?? {})) as typeof fetch;
   }
 
   private async rpc<T>(method: string, params: unknown[]): Promise<T> {
