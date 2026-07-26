@@ -1,13 +1,64 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 
 import type { KyxConfig } from '../config.js';
 import type { Mailer } from '../mailer.js';
+import { metrics } from '../metrics.js';
 import type { KyxStore } from '../store.js';
 
-const VerifyRequest = z.object({ email: z.string().email() });
+const VerifyRequest = z.object({
+  email: z.string().email(),
+  username: z
+    .string()
+    .regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{2,23}$/, 'username must be 3-24 chars: letters, digits, - or _')
+    .optional(),
+});
+
+function defaultUsername(email: string): string {
+  return `op-${createHash('sha256').update(email.toLowerCase()).digest('hex').slice(0, 8)}`;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => {
+    switch (c) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      default:
+        return '&#39;';
+    }
+  });
+}
+
+
+class RateLimiter {
+  private readonly hits = new Map<string, { count: number; resetAt: number }>();
+
+  constructor(
+    private readonly max: number,
+    private readonly windowMs: number,
+    private readonly now: () => number = Date.now,
+  ) {}
+
+  take(key: string): boolean {
+    const nowMs = this.now();
+    const entry = this.hits.get(key);
+    if (!entry || entry.resetAt <= nowMs) {
+      this.hits.set(key, { count: 1, resetAt: nowMs + this.windowMs });
+      return true;
+    }
+    if (entry.count >= this.max) return false;
+    entry.count += 1;
+    return true;
+  }
+}
 
 /** The verify link is opened from an email client, so answer humans with HTML. */
 function htmlPage(reply: FastifyReply, status: number, title: string, detail: string): FastifyReply {
@@ -30,23 +81,50 @@ export function registerOperatorRoutes(
   config: KyxConfig,
   mailer: Mailer | null,
 ): void {
+  const emailLimiter = new RateLimiter(5, 15 * 60_000);
+  const ipLimiter = new RateLimiter(20, 15 * 60_000);
+
   app.post('/operators/verify-request', async (request, reply) => {
     const parsed = VerifyRequest.safeParse(request.body);
-    if (!parsed.success) return reply.status(400).send({ error: 'MALFORMED_REQUEST' });
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: 'MALFORMED_REQUEST',
+        detail: parsed.error.issues.map((i) => i.message).join('; '),
+      });
+    }
     const email = parsed.data.email;
+    if (!emailLimiter.take(email.toLowerCase()) || !ipLimiter.take(request.ip)) {
+      return reply.status(429).send({
+        error: 'RATE_LIMITED',
+        detail: 'Too many verification requests. Try again later.',
+      });
+    }
     const existing = await store.getOperator(email);
+    const username = parsed.data.username ?? existing?.username ?? defaultUsername(email);
+    const owner = await store.getOperatorByUsername(username);
+    if (owner && owner.email.toLowerCase() !== email.toLowerCase()) {
+      return reply.status(409).send({ error: 'USERNAME_TAKEN' });
+    }
     if (existing?.verified) {
-      return { ok: true, already_verified: true };
+      if (existing.username !== username) await store.upsertOperator({ ...existing, username });
+      return { ok: true, already_verified: true, username };
     }
     const token = randomBytes(24).toString('hex');
     const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    await store.upsertOperator({ email, verified: false, token, tokenExpiresAt });
+    await store.upsertOperator({ email, username, verified: false, token, tokenExpiresAt });
     const verificationUrl = `${config.publicUrl}/operators/verify/${token}`;
 
-    const devFlow = !mailer || config.devTokenEmails.includes(email.toLowerCase());
-    if (devFlow) {
-      app.log.info({ email, verificationUrl }, 'operator verification magic link');
-      return { ok: true, verification_url: verificationUrl, dev_token: token };
+    
+    if (config.devTokenEmails.includes(email.toLowerCase())) {
+      app.log.info({ email, verificationUrl }, 'operator verification magic link (dev allowlist)');
+      return { ok: true, verification_url: verificationUrl, dev_token: token, username };
+    }
+    
+    if (!mailer) {
+      return reply.status(503).send({
+        error: 'EMAIL_NOT_CONFIGURED',
+        detail: 'Email verification is unavailable: SMTP is not configured.',
+      });
     }
 
     try {
@@ -56,7 +134,8 @@ export function registerOperatorRoutes(
       return reply.status(502).send({ error: 'EMAIL_SEND_FAILED' });
     }
     app.log.info({ email }, 'operator verification email sent');
-    return { ok: true, email_sent: true };
+    metrics.inc('verification_emails_sent_total');
+    return { ok: true, email_sent: true, username };
   });
 
   app.get('/operators/verify/:token', async (request, reply) => {
@@ -76,15 +155,17 @@ export function registerOperatorRoutes(
     }
     await store.upsertOperator({
       email: found.email,
+      username: found.username,
       verified: true,
       verifiedAt: new Date().toISOString(),
     });
+    metrics.inc('operators_verified_total');
     if (wantsHtml) {
       return htmlPage(
         reply,
         200,
         'Email verified ✓',
-        `<strong>${found.email}</strong> is now a verified fourotwo operator. You can close this tab and return to registering your agent.`,
+        `<strong>${escapeHtml(found.email)}</strong> is now a verified fourotwo operator. You can close this tab and return to registering your agent.`,
       );
     }
     return { ok: true, email: found.email, verified: true };
