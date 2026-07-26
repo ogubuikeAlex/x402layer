@@ -1,4 +1,5 @@
 import type { PaymentPayload, SettlementReceipt } from '@fourotwo/types';
+import { fetchWithTimeout } from '@fourotwo/types';
 
 export interface SettlementReporter {
   report(args: {
@@ -15,6 +16,7 @@ export class NoopSettlementReporter implements SettlementReporter {
 export class HttpSettlementReporter implements SettlementReporter {
   constructor(
     private readonly baseUrl: string,
+    private readonly token: string | undefined = undefined,
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
@@ -23,9 +25,13 @@ export class HttpSettlementReporter implements SettlementReporter {
     receipt: SettlementReceipt;
     status: 'pending' | 'confirmed' | 'failed';
   }): Promise<void> {
-    const res = await this.fetchImpl(`${this.baseUrl}/settlements`, {
+    const res = await fetchWithTimeout(this.fetchImpl, `${this.baseUrl}/settlements`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      timeoutMs: 8_000,
+      headers: {
+        'content-type': 'application/json',
+        ...(this.token ? { authorization: `Bearer ${this.token}` } : {}),
+      },
       body: JSON.stringify({
         settlement_id: args.receipt.settlementId,
         did: args.receipt.did,

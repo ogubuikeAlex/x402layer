@@ -1,5 +1,5 @@
 import type { AgentTrustSummary, TrustScore } from '@fourotwo/types';
-import { tierForScore } from '@fourotwo/types';
+import { tierForScore, fetchWithTimeout } from '@fourotwo/types';
 
 export interface TrustClient {
   /**
@@ -35,7 +35,11 @@ export class HttpTrustClient implements TrustClient {
   ) {}
 
   async getTrustSummary(did: string): Promise<AgentTrustSummary | null> {
-    const res = await this.fetchImpl(`${this.baseUrl}/trust/${encodeURIComponent(did)}/summary`);
+    const res = await fetchWithTimeout(
+      this.fetchImpl,
+      `${this.baseUrl}/trust/${encodeURIComponent(did)}/summary`,
+      { timeoutMs: 5_000 },
+    );
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`KYX registry trust lookup failed: ${res.status}`);
     const body = (await res.json()) as AgentTrustSummary | TrustScore;
