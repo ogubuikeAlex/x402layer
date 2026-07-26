@@ -22,9 +22,11 @@ export interface TrustDimensionCalculator {
 
 export class CompletionRateCalculator implements TrustDimensionCalculator {
   calculate({ settlements }: TrustContext): DimensionResult {
-    if (settlements.length === 0) return { key: 'completionRate', score: 100, weight: 0.5 };
-    const successful = settlements.filter((s) => s.status === 'confirmed' || s.status === 'pending').length;
-    return { key: 'completionRate', score: (successful / settlements.length) * 100, weight: 0.5 };
+    const confirmed = settlements.filter((s) => s.status === 'confirmed').length;
+    const failed = settlements.filter((s) => s.status === 'failed').length;
+    const decided = confirmed + failed;
+    const score = decided === 0 ? 0 : (confirmed / decided) * 100;
+    return { key: 'completionRate', score, weight: 0.5 };
   }
 }
 
@@ -61,7 +63,12 @@ export async function computeAndPersistTrustScore(
   ];
   const dimensions = calculators.map((c) => c.calculate(ctx));
   const score = Math.round(dimensions.reduce((sum, d) => sum + d.score * d.weight, 0));
-  const totalVolumeUsd = settlements.reduce((sum, s) => sum + Number(s.amount) / 1_000_000, 0);
+  const totalVolume = settlements.reduce((sum, s) => {
+    const amount = Number(s.amount);
+    if (!Number.isFinite(amount)) return sum;
+    const decimals = s.token.toUpperCase() === 'USDC' ? 6 : 9;
+    return sum + amount / 10 ** decimals;
+  }, 0);
   const trust: TrustRecord = {
     did,
     score,
@@ -70,11 +77,15 @@ export async function computeAndPersistTrustScore(
     operatorVerified: (dimensions.find((d) => d.key === 'operatorVerified')?.score ?? 0) === 100,
     volumeTierScore: dimensions.find((d) => d.key === 'volumeTier')?.score ?? 0,
     transactionCount: settlements.length,
-    totalVolumeUsd,
+    totalVolume,
     flags: config.kyxRegistryContractHash ? [] : ['on_chain_sync_unconfigured'],
     lastUpdated: new Date().toISOString(),
   };
   await store.putTrust(trust);
-  void syncTrustScore(trust, config).catch(() => undefined);
+  void syncTrustScore(trust, config).catch((err: unknown) =>
+    console.warn(
+      `[trust] on-chain trust sync failed for ${did}: ${err instanceof Error ? err.message : String(err)}`,
+    ),
+  );
   return trust;
 }

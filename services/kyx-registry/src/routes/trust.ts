@@ -26,7 +26,7 @@ function toTrustScore(record: TrustRecord): TrustScore {
     },
     history: {
       totalTransactions: record.transactionCount,
-      totalVolumeUsd: record.totalVolumeUsd,
+      totalVolume: record.totalVolume,
       oldestTransaction: null,
       activeSinceDays: 0,
     },
