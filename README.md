@@ -57,7 +57,7 @@ import { fourotwoAgent } from "@fourotwo/agent-sdk";
 
 const agent = new fourotwoAgent({
   privateKeyHex: process.env.FOUROTWO_PRIVATE_KEY, // never leaves your process
-  budget: { dailyUsd: 10, perRequestUsd: 0.5 }, // optional spend limits
+  budget: { dailyTokens: 10, perRequestTokens: 0.5 }, // optional spend limits (whole tokens)
 });
 
 // drop-in fetch - pays automatically when it gets a 402
@@ -77,6 +77,7 @@ Cargo/Odra toolchain and are not built by the JS workspace.
 packages/
   types/          @fourotwo/types    - shared types, DID derivation, envelope codec (published)
   agent-sdk/      @fourotwo/agent-sdk - drop-in fetch that handles layer402 payments (published)
+  agent-sdk-py/   fourotwo-agent-sdk (Python) - same layer402 flow for Python agents (pip)
 services/
   facilitator/    layer402 facilitator (Fastify): /verify, /settle, /supported, /trust
   kyx-registry/   agent identity + trust registry (Fastify): operators, agents, trust
@@ -84,7 +85,13 @@ services/
 contracts/        Casper smart contracts (Rust + Odra)
   src/kyx_registry.rs      agent identity + trust score registry
   src/settlement_vault.rs  on-chain settlement records
-demos/            reference merchant (mock RWA API) + reference agent
+demos/
+  paid-api-provider/   Meridian - reference merchant monetising an API via layer402
+  agent-app/           Atlas - autonomous agent with a browser UI + 402 fetch interceptor
+  batch-stream-demo/   high-frequency merchant + agent: N payments, 1 batched on-chain settlement
+  python-agent/        terminal agent driving the full loop with the Python SDK
+  rwa-oracle-agent/    minimal terminal agent (first SDK consumer)
+  mock-rwa-api/        minimal mock merchant
 ```
 
 ## Local development

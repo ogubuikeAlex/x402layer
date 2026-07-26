@@ -1,0 +1,20 @@
+{
+  "seed": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+  "publicKeyHex": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+  "taggedPublicKeyHex": "01d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+  "did": "did:fourotwo:casper:b6c0e5c9ee25f43f57e577b5821688b9ac164eb7c4c08a24d43d1806ac721342",
+  "didFromTaggedKey": "did:fourotwo:casper:b6c0e5c9ee25f43f57e577b5821688b9ac164eb7c4c08a24d43d1806ac721342",
+  "paymentRequired": {
+    "network": "casper",
+    "token": "CSPR",
+    "amount": "5000000000",
+    "recipient": "account-hash-13a08fe40b282052cc49edbd067edbc3705696ef6731f1fb0396f164c53519d3",
+    "nonce": "nonce-fixed-0001",
+    "expiry": 4102444800,
+    "facilitator": "https://fourotwo-facilitator.onrender.com",
+    "minTrustScore": 40
+  },
+  "canonicalMessage": "network=casper\ntoken=CSPR\namount=5000000000\nrecipient=account-hash-13a08fe40b282052cc49edbd067edbc3705696ef6731f1fb0396f164c53519d3\nnonce=nonce-fixed-0001\nexpiry=4102444800\nfacilitator=https://fourotwo-facilitator.onrender.com\nminTrustScore=40",
+  "encodedEnvelope": "eyJuZXR3b3JrIjoiY2FzcGVyIiwidG9rZW4iOiJDU1BSIiwiYW1vdW50IjoiNTAwMDAwMDAwMCIsInJlY2lwaWVudCI6ImFjY291bnQtaGFzaC0xM2EwOGZlNDBiMjgyMDUyY2M0OWVkYmQwNjdlZGJjMzcwNTY5NmVmNjczMWYxZmIwMzk2ZjE2NGM1MzUxOWQzIiwibm9uY2UiOiJub25jZS1maXhlZC0wMDAxIiwiZXhwaXJ5Ijo0MTAyNDQ0ODAwLCJmYWNpbGl0YXRvciI6Imh0dHBzOi8vZm91cm90d28tZmFjaWxpdGF0b3Iub25yZW5kZXIuY29tIiwibWluVHJ1c3RTY29yZSI6NDB9",
+  "paymentSignature": "eyJwYXllciI6IjAxZDc1YTk4MDE4MmIxMGFiN2Q1NGJmZWQzYzk2NDA3M2EwZWUxNzJmM2RhYTYyMzI1YWYwMjFhNjhmNzA3NTExYSIsInNpZ25hdHVyZSI6ImZiMzE3MTNiZWJmZWU4Y2I3YjNjMzNiMWY4ZTMxNWQxYWQ4YWQ1OTYzMDZjODY3YTc2MjNjODczYWZhMzdiNDQxNWVjYzcyNzIwNDJmNDQ2ZTM4MzM1MGNmMDExNjY4OWYwMjJhZmMyYWY1MGUzNDQxZmUyOGE2ZjQzNDcxODBiIn0="
+}
