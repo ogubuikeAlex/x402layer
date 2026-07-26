@@ -1,0 +1,10 @@
+{
+  "name": "@fourotwo-demo/batch-stream-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "High-frequency tick-data merchant + agent settling via batched settlement (N payments, 1 on-chain record)",
+  "type": "module",
+  "scripts": {
+    "start": "node run.mjs"
+  }
+}

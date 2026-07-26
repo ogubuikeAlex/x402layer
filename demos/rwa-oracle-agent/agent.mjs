@@ -14,8 +14,8 @@
 //   FOUROTWO_PRIVATE_KEY  hex ed25519 secret; generated if unset
 //   KYX_REGISTRY_URL    if set, the agent self-registers before transacting
 //   OPERATOR_EMAIL      default oracle@fourotwo.dev (used for registration)
-//   AGENT_DAILY_USD     default 10   (spend budget - daily)
-//   AGENT_PER_REQ_USD   default 1    (spend budget - per request)
+//   AGENT_DAILY_TOKENS   default 10   (spend budget - whole tokens per day)
+//   AGENT_PER_REQ_TOKENS default 1    (spend budget - whole tokens per request)
 
 import { fourotwoAgent, generateCasperKeypair, keypairFromPrivateKey } from '@fourotwo/agent-sdk';
 
@@ -106,8 +106,8 @@ async function main() {
     did: keypair.did,
     privateKeyHex: keypair.privateKeyHex,
     budget: {
-      dailyUsd: Number(process.env.AGENT_DAILY_USD ?? 10),
-      perRequestUsd: Number(process.env.AGENT_PER_REQ_USD ?? 1),
+      dailyTokens: Number(process.env.AGENT_DAILY_TOKENS ?? 10),
+      perRequestTokens: Number(process.env.AGENT_PER_REQ_TOKENS ?? 1),
     },
     fetchImpl: loggingFetch,
   });

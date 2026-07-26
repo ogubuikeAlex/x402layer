@@ -60,7 +60,7 @@
 
 const agent = new fourotwoAgent({
   privateKeyHex: process.env.FOUROTWO_PRIVATE_KEY,
-  budget: { perRequestUsd: 5 },
+  budget: { perRequestTokens: 5 },
 });
 
 // 402 is handled transparently - you just get the data

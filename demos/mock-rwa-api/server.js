@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { encodeEnvelope } from '../../packages/types/dist/index.js';
@@ -74,6 +74,17 @@ const server = createServer(async (req, res) => {
       );
     }
 
+    // Reject any assetId that isn't a plain identifier: without this, a value like
+    // `..%2f..%2fsecret` would traverse outside the data directory.
+    if (!/^[a-zA-Z0-9_-]+$/.test(assetId)) {
+      return json(res, 400, { error: 'INVALID_ASSET_ID' });
+    }
+    const dataDir = resolve(__dirname, 'data');
+    const filePath = resolve(dataDir, `${assetId}.json`);
+    if (filePath !== dataDir && !filePath.startsWith(dataDir + sep)) {
+      return json(res, 400, { error: 'INVALID_ASSET_ID' });
+    }
+
     const payment = await verifyAndSettle({
       did: String(did),
       paymentRequiredHeader: String(paymentRequiredHeader),
@@ -81,7 +92,12 @@ const server = createServer(async (req, res) => {
     });
     if (!payment.ok) return json(res, 402, { error: 'PAYMENT_FAILED', payment });
 
-    const raw = await readFile(join(__dirname, 'data', `${assetId}.json`), 'utf8');
+    let raw;
+    try {
+      raw = await readFile(filePath, 'utf8');
+    } catch {
+      return json(res, 404, { error: 'ASSET_NOT_FOUND', asset_id: assetId });
+    }
     return json(res, 200, { data: JSON.parse(raw), payment });
   } catch (err) {
     return json(res, 500, { error: 'SERVER_ERROR', detail: err.message });

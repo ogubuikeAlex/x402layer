@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 import { encodeEnvelope, deriveAddress } from '../../packages/types/dist/index.js';
 import { generateCasperKeypair } from '../../packages/agent-sdk/dist/index.js';
+import { createMetrics, instrumentRequest } from '../shared/metrics.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -149,10 +150,16 @@ async function serveStatic(res, pathname) {
   }
 }
 
+const metrics = createMetrics('meridian');
+const normalizeRoute = (p) =>
+  /^\/api\/assets\/[^/]+$/.test(p) ? '/api/assets/:id' : p.startsWith('/api/') ? p : 'static';
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
   const { pathname } = url;
+  if (instrumentRequest(req, res, pathname, metrics, normalizeRoute)) return;
 
+  try {
   if (req.method === 'OPTIONS') {
     cors(res);
     res.writeHead(204).end();
@@ -194,6 +201,7 @@ const server = createServer(async (req, res) => {
 
     // No payment yet → 402 with the terms in the PAYMENT-REQUIRED header.
     if (!paymentSignature || !paymentRequiredHeader || !did) {
+      metrics.inc('paywall_402_issued_total', { asset: asset.id });
       const encoded = encodeEnvelope(paymentTerms(asset));
       return json(
         res,
@@ -209,7 +217,10 @@ const server = createServer(async (req, res) => {
       paymentRequiredHeader: String(paymentRequiredHeader),
       paymentSignature: String(paymentSignature),
     });
-    if (!result.ok) return json(res, 402, { error: 'PAYMENT_FAILED', detail: result });
+    if (!result.ok) {
+      metrics.inc('paid_requests_total', { asset: asset.id, result: 'rejected' });
+      return json(res, 402, { error: 'PAYMENT_FAILED', detail: result });
+    }
 
     const receipt = result.settle?.receipt;
     // The real native-CSPR settlement transfer, broadcast agent-side.
@@ -228,6 +239,8 @@ const server = createServer(async (req, res) => {
       at: new Date().toISOString(),
     };
     earnings.push(record);
+    metrics.inc('paid_requests_total', { asset: asset.id, result: 'settled' });
+    metrics.inc('earnings_motes_total', undefined, Number(asset.priceMotes));
 
     let data;
     try {
@@ -241,6 +254,12 @@ const server = createServer(async (req, res) => {
   // ── Static (API-doc site) ─────────────────────────────────────────
   if (req.method === 'GET') return serveStatic(res, pathname);
   return json(res, 404, { error: 'NOT_FOUND' });
+  } catch (err) {
+    // Always write a response so a bad input or unreachable facilitator can't
+    // leave the socket hanging.
+    if (!res.headersSent) return json(res, 500, { error: 'SERVER_ERROR', detail: String(err?.message ?? err) });
+    res.end();
+  }
 });
 
 server.listen(PORT, () => {
