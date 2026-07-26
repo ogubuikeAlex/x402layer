@@ -28,7 +28,7 @@ export interface TrustDimensions {
 
 export interface TrustHistory {
   totalTransactions: number;
-  totalVolumeUsd: number;
+  totalVolume: number;
   oldestTransaction: string | null;
   activeSinceDays: number;
 }
@@ -55,6 +55,8 @@ export interface SettlementReceipt {
   txHash?: string;
   batchId?: string;
   channelId?: string;
+  /** Platform fee accrued on this settlement (token smallest unit). */
+  feeMotes?: string;
   trustScore: number; // score at time of settlement
   settledAt: string;
   facilitatorSignature: string;
@@ -130,6 +132,9 @@ export type VerifyRejectionReason =
   | 'INSUFFICIENT_BALANCE'
   | 'AGENT_NOT_REGISTERED'
   | 'AGENT_BLOCKED'
+  | 'DID_KEY_MISMATCH'
+  | 'TRUST_UNAVAILABLE'
+  | 'BALANCE_UNAVAILABLE'
   | 'REPLAYED'
   | 'UNSUPPORTED_NETWORK'
   | 'MALFORMED_PAYLOAD';
@@ -163,6 +168,10 @@ export interface SettleResponse {
   vault_recorded?: boolean;
   /** Deploy/transaction hash of the on-chain SettlementVault record, when broadcast. */
   vault_tx?: string;
+  /** Present for batched settlements: the batch this payment is queued in. */
+  batch_id?: string;
+  /** Platform fee accrued on this settlement (token smallest unit). */
+  fee_motes?: string;
   warning?: string;
 }
 
