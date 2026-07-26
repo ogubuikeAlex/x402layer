@@ -1,14 +1,33 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 import type { ChainNetwork, TrustTier } from '@fourotwo/types';
 
+export class DuplicateKeyError extends Error {
+  readonly code = 11000;
+  constructor(readonly field: string) {
+    super(`Duplicate value for unique field "${field}"`);
+    this.name = 'DuplicateKeyError';
+  }
+}
+
+export function isDuplicateKeyError(err: unknown): boolean {
+  return !!err && typeof err === 'object' && (err as { code?: number }).code === 11000;
+}
+
 export interface OperatorRecord {
   email: string;
+  username?: string;
   verified: boolean;
   token?: string;
   tokenExpiresAt?: string;
   verifiedAt?: string;
+}
+
+export interface AgentSearchResult {
+  agents: AgentRecord[];
+  total: number;
 }
 
 export interface AgentRecord {
@@ -43,7 +62,7 @@ export interface TrustRecord {
   operatorVerified: boolean;
   volumeTierScore: number;
   transactionCount: number;
-  totalVolumeUsd: number;
+  totalVolume: number;
   flags: string[];
   lastUpdated: string;
 }
@@ -52,10 +71,12 @@ export interface KyxStore {
   init(): Promise<void>;
   close(): Promise<void>;
   listAgents(): Promise<AgentRecord[]>;
+  searchAgents(opts: { q?: string; offset: number; limit: number }): Promise<AgentSearchResult>;
   getAgent(did: string): Promise<AgentRecord | undefined>;
   getAgentByPublicKey(publicKey: string): Promise<AgentRecord | undefined>;
-  getAgentByNameAndOperator(agentName: string, operatorEmail: string): Promise<AgentRecord | undefined>;
+  getAgentByName(agentName: string): Promise<AgentRecord | undefined>;
   getOperator(email: string): Promise<OperatorRecord | undefined>;
+  getOperatorByUsername(username: string): Promise<OperatorRecord | undefined>;
   getOperatorByToken(token: string): Promise<OperatorRecord | undefined>;
   upsertOperator(operator: OperatorRecord): Promise<void>;
   addAgent(agent: AgentRecord): Promise<void>;
@@ -91,11 +112,19 @@ export class FileKyxStore implements KyxStore {
 
   private async save(): Promise<void> {
     await mkdir(dirname(this.file), { recursive: true });
-    await writeFile(this.file, JSON.stringify(this.data, null, 2), 'utf8');
+    const tmp = `${this.file}.${randomUUID()}.tmp`;
+    await writeFile(tmp, JSON.stringify(this.data, null, 2), 'utf8');
+    await rename(tmp, this.file);
   }
 
   async listAgents(): Promise<AgentRecord[]> {
     return [...this.data.agents].sort((a, b) => b.registeredAt.localeCompare(a.registeredAt));
+  }
+
+  async searchAgents(opts: { q?: string; offset: number; limit: number }): Promise<AgentSearchResult> {
+    const q = opts.q?.trim().toLowerCase();
+    const matches = (await this.listAgents()).filter((a) => !q || a.agentName.toLowerCase().includes(q));
+    return { agents: matches.slice(opts.offset, opts.offset + opts.limit), total: matches.length };
   }
 
   async getAgent(did: string): Promise<AgentRecord | undefined> {
@@ -106,16 +135,16 @@ export class FileKyxStore implements KyxStore {
     return this.data.agents.find((a) => a.publicKey.toLowerCase() === publicKey.toLowerCase());
   }
 
-  async getAgentByNameAndOperator(agentName: string, operatorEmail: string): Promise<AgentRecord | undefined> {
-    return this.data.agents.find(
-      (a) =>
-        a.agentName.toLowerCase() === agentName.toLowerCase() &&
-        a.operatorEmail.toLowerCase() === operatorEmail.toLowerCase(),
-    );
+  async getAgentByName(agentName: string): Promise<AgentRecord | undefined> {
+    return this.data.agents.find((a) => a.agentName.toLowerCase() === agentName.toLowerCase());
   }
 
   async getOperator(email: string): Promise<OperatorRecord | undefined> {
     return this.data.operators.find((o) => o.email.toLowerCase() === email.toLowerCase());
+  }
+
+  async getOperatorByUsername(username: string): Promise<OperatorRecord | undefined> {
+    return this.data.operators.find((o) => o.username?.toLowerCase() === username.toLowerCase());
   }
 
   async getOperatorByToken(token: string): Promise<OperatorRecord | undefined> {
@@ -123,6 +152,14 @@ export class FileKyxStore implements KyxStore {
   }
 
   async upsertOperator(operator: OperatorRecord): Promise<void> {
+    if (operator.username) {
+      const clash = this.data.operators.find(
+        (o) =>
+          o.username?.toLowerCase() === operator.username!.toLowerCase() &&
+          o.email.toLowerCase() !== operator.email.toLowerCase(),
+      );
+      if (clash) throw new DuplicateKeyError('username');
+    }
     const idx = this.data.operators.findIndex((o) => o.email.toLowerCase() === operator.email.toLowerCase());
     if (idx >= 0) this.data.operators[idx] = operator;
     else this.data.operators.push(operator);
@@ -130,6 +167,13 @@ export class FileKyxStore implements KyxStore {
   }
 
   async addAgent(agent: AgentRecord): Promise<void> {
+    if (this.data.agents.some((a) => a.did === agent.did)) throw new DuplicateKeyError('did');
+    if (this.data.agents.some((a) => a.publicKey.toLowerCase() === agent.publicKey.toLowerCase())) {
+      throw new DuplicateKeyError('publicKey');
+    }
+    if (this.data.agents.some((a) => a.agentName.toLowerCase() === agent.agentName.toLowerCase())) {
+      throw new DuplicateKeyError('agentName');
+    }
     this.data.agents.push(agent);
     await this.save();
   }
