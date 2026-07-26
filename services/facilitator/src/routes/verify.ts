@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import type { AppContext } from '../context.js';
 import { runVerify } from '../core/verify.js';
+import { metrics } from '../metrics.js';
 
 const VerifyBody = z.object({
   payment_signature: z.string(),
@@ -21,6 +22,9 @@ export function registerVerifyRoute(app: FastifyInstance, ctx: AppContext): void
       });
     }
     const outcome = await runVerify(ctx, parsed.data);
+    metrics.inc('verifications_total', {
+      valid: String((outcome.body as { valid?: boolean }).valid ?? false),
+    });
     return reply.status(outcome.status).send(outcome.body);
   });
 }

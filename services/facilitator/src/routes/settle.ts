@@ -3,10 +3,11 @@ import { z } from 'zod';
 
 import type { AppContext } from '../context.js';
 import { runSettle } from '../core/settle.js';
+import { metrics } from '../metrics.js';
 
 const SettleBody = z.object({
   verification_id: z.string(),
-  settlement_mode: z.enum(['auto', 'direct', 'batch', 'channel', 'l2']).optional(),
+  settlement_mode: z.enum(['auto', 'direct', 'batch']).optional(),
 });
 
 export function registerSettleRoute(app: FastifyInstance, ctx: AppContext): void {
@@ -19,6 +20,11 @@ export function registerSettleRoute(app: FastifyInstance, ctx: AppContext): void
       });
     }
     const outcome = await runSettle(ctx, parsed.data);
+    const body = outcome.body as { status?: string; mode?: string };
+    metrics.inc('settlements_total', {
+      status: body.status ?? 'error',
+      mode: body.mode ?? 'unknown',
+    });
     return reply.status(outcome.status).send(outcome.body);
   });
 }
