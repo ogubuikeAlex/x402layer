@@ -25,6 +25,11 @@ npm-debug.log*
 *.sqlite3
 ledger.json
 
+# Runtime state / PII — never commit (contains operator emails, DIDs, keys)
+.data/
+**/.data/
+fees.json
+
 # OS / editor
 .DS_Store
 Thumbs.db
@@ -34,3 +39,11 @@ Thumbs.db
 fourotwo*
 .claude
 agent-key
+CASPER-AI-HACKATHON-DEMO.md
+oitch1.html
+package-lock.json
+pitchdeck.html
+review-extended.md
+demos/v2-demo/__pycache__/atlas_agent.cpython-311.pyc
+demos/python-agent/__pycache__/agent.cpython-311.pyc
+review.md
