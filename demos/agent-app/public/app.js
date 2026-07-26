@@ -8,12 +8,22 @@ const fmtCspr = (motes) =>
 
 const short = (s, n = 10) => (s && s.length > n * 2 ? `${s.slice(0, n)}…${s.slice(-n)}` : s);
 
+// Escape untrusted (merchant-supplied) strings before interpolating into innerHTML.
+const esc = (s) =>
+  String(s ?? '').replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
+  );
+
 let MERCHANT_URL = '';
 let wallet = null;
+// Autonomous mode: pay 402s without asking. Server env sets the default
+// (AGENT_AUTO_PAY, on unless =false); the header toggle overrides at runtime.
+let autoPay = true;
 
 // ── The global fetch interceptor ─────────────────────────────────────
-// Any response with status 402 is paused: we read the payment terms, block the
-// UI with an approval modal, and only resolve the original call once paid.
+// Any response with status 402 is paused. In autonomous mode the payment is
+// signed + settled immediately; otherwise a blocking approval modal is shown.
 const realFetch = window.fetch.bind(window);
 window.fetch = async (input, init) => {
   const res = await realFetch(input, init);
@@ -23,8 +33,10 @@ window.fetch = async (input, init) => {
   const paymentRequired = res.headers.get('PAYMENT-REQUIRED');
   if (!paymentRequired) return res; // not an layer402 paywall we understand
 
-  const paid = await requestPaymentApproval({ targetUrl, paymentRequired });
-  if (!paid) return res; // user cancelled → hand back the original 402
+  const paid = autoPay
+    ? await executeAutonomously({ targetUrl, paymentRequired })
+    : await requestPaymentApproval({ targetUrl, paymentRequired });
+  if (!paid) return res; // cancelled / failed → hand back the original 402
 
   // Hand the caller a normal 200 carrying the now-paid data.
   return new Response(JSON.stringify(paid), {
@@ -32,6 +44,52 @@ window.fetch = async (input, init) => {
     headers: { 'content-type': 'application/json' },
   });
 };
+
+// ── Autonomous payment (no approval step) ────────────────────────────
+async function executeAutonomously({ targetUrl, paymentRequired }) {
+  let amountLabel = '';
+  try {
+    const terms = JSON.parse(atob(paymentRequired));
+    amountLabel = ` ${fmtCspr(terms.amount)}`;
+  } catch {
+    /* label only */
+  }
+  showToast(`auto-paying${amountLabel}…`, 'busy');
+  try {
+    const result = await realFetch('/api/pay/execute', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ targetUrl, paymentRequired }),
+    }).then((r) => r.json());
+
+    if (!result.ok) {
+      showToast(`auto-payment failed: ${result.error ?? 'unknown error'}`, 'fail');
+      return null;
+    }
+    if (result.liveAfterMotes != null) setWalletBalance(result.liveAfterMotes);
+    else if (result.projectedAfterMotes != null) setWalletBalance(result.projectedAfterMotes);
+    showToast(`paid${amountLabel} autonomously ✓`, 'ok');
+    return result;
+  } catch (err) {
+    showToast(`auto-payment error: ${err.message}`, 'fail');
+    return null;
+  }
+}
+
+// ── Toast (non-blocking status for autonomous payments) ──────────────
+let toastTimer = null;
+function showToast(text, kind) {
+  let el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  el.className = `toast ${kind ?? ''} show`;
+  clearTimeout(toastTimer);
+  if (kind !== 'busy') toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
+}
 
 // ── Payment approval modal ───────────────────────────────────────────
 const overlay = document.getElementById('overlay');
@@ -158,6 +216,8 @@ async function loadWallet() {
   try {
     wallet = await realFetch('/api/wallet').then((r) => r.json());
     MERCHANT_URL = wallet.merchantUrl;
+    autoPay = wallet.autoPay !== false;
+    syncAutoPayToggle();
     setWalletBalance(wallet.balanceMotes);
     document.getElementById('w-did').textContent = wallet.did;
     if (!wallet.funded) {
@@ -168,6 +228,19 @@ async function loadWallet() {
   }
 }
 
+function syncAutoPayToggle() {
+  const box = document.getElementById('autopay-toggle');
+  const label = document.getElementById('autopay-state');
+  if (!box) return;
+  box.checked = autoPay;
+  label.textContent = autoPay ? 'autonomous' : 'ask first';
+  box.onchange = () => {
+    autoPay = box.checked;
+    label.textContent = autoPay ? 'autonomous' : 'ask first';
+    showToast(autoPay ? 'payments: autonomous (no approval)' : 'payments: approval required', 'ok');
+  };
+}
+
 async function loadCatalog() {
   const el = document.getElementById('catalog');
   try {
@@ -175,12 +248,12 @@ async function loadCatalog() {
     el.innerHTML = assets
       .map(
         (a) => `<div class="card">
-          <div class="c-kind">${a.kind}</div>
-          <div class="c-name">${a.name}</div>
-          <div class="c-id">${a.id}</div>
+          <div class="c-kind">${esc(a.kind)}</div>
+          <div class="c-name">${esc(a.name)}</div>
+          <div class="c-id">${esc(a.id)}</div>
           <div class="c-foot">
             <span class="c-price">${fmtCspr(a.priceMotes)}</span>
-            <button class="btn small pull" data-id="${a.id}">Pull data</button>
+            <button class="btn small pull" data-id="${esc(a.id)}">Pull data</button>
           </div>
         </div>`,
       )
@@ -216,15 +289,15 @@ async function fetchAsset(id) {
     const settlement = body.settlement;
     const receipt = body.receipt;
     let line =
-      `<span class="r-ok">✓ paid &amp; settled</span> ${id}` +
-      (settlement ? ` · settlement <code>${settlement.settlementId}</code>` : '') +
+      `<span class="r-ok">✓ paid &amp; settled</span> ${esc(id)}` +
+      (settlement ? ` · settlement <code>${esc(settlement.settlementId)}</code>` : '') +
       (receipt?.facilitatorSignature ? ` · receipt signed` : '');
     if (body.transferExplorerUrl) {
-      line += ` · <a class="r-explorer" href="${body.transferExplorerUrl}" target="_blank" rel="noreferrer">view SettlementVault transfer on cspr.live ↗</a>`;
+      line += ` · <a class="r-explorer" href="${esc(body.transferExplorerUrl)}" target="_blank" rel="noreferrer">view SettlementVault transfer on cspr.live ↗</a>`;
     } else if (body.transferSkipped) {
-      line += ` · <span class="r-note">on-chain transfer skipped (${body.transferSkipped})</span>`;
+      line += ` · <span class="r-note">on-chain transfer skipped (${esc(body.transferSkipped)})</span>`;
     } else if (body.transferError) {
-      line += ` · <span class="r-note">transfer error: ${body.transferError}</span>`;
+      line += ` · <span class="r-note">transfer error: ${esc(body.transferError)}</span>`;
     }
     meta.innerHTML = line;
     out.textContent = JSON.stringify(data, null, 2);

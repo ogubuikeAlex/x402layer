@@ -7,7 +7,7 @@ The fourotwo layer402 facilitator. Standards-compliant `/verify`, `/settle`,
 
 | Method | Path         | Ticket | Notes                                       |
 | ------ | ------------ | ------ | ------------------------------------------- |
-| GET    | `/health`    | M1-T5  | `{ "status": "ok" }`                        |
+| GET    | `/health`    | M1-T5  | `{ "status": "ok" `                        |
 | GET    | `/supported` | M1-T10 | Networks, tokens, features (layer402-v2)    |
 | POST   | `/verify`    | M1-T8  | Verify a payment payload + attach trust     |
 | POST   | `/settle`    | M1-T9  | Direct on-chain settlement + signed receipt |

@@ -29,7 +29,7 @@ export function Nav() {
           layer<span className="text-accent">402</span>
         </Link>
 
-        <ul className="hidden items-center gap-9 md:flex">
+        <ul className="hidden items-center gap-9 nav:flex">
           {LINKS.map((l) => {
             const active = l.href === '/' ? pathname === '/' : pathname.startsWith(l.href);
             return (
@@ -49,7 +49,7 @@ export function Nav() {
 
         <Link
           href="/playground"
-          className="hidden border border-accent px-5 py-2.5 text-[11px] uppercase tracking-wide2 text-accent transition-colors hover:bg-accent hover:text-bg md:inline-flex"
+          className="hidden border border-accent px-5 py-2.5 text-[11px] uppercase tracking-wide2 text-accent transition-colors hover:bg-accent hover:text-bg nav:inline-flex"
         >
           Try it live
         </Link>
@@ -60,7 +60,7 @@ export function Nav() {
           aria-expanded={menuOpen}
           aria-controls="mobile-navigation"
           onClick={() => setMenuOpen((open) => !open)}
-          className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 border border-hairline bg-surface/50 text-accent transition-colors hover:border-accent md:hidden"
+          className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 border border-hairline bg-surface/50 text-accent transition-colors hover:border-accent nav:hidden"
         >
           <span className={`h-px w-5 bg-current transition-transform ${menuOpen ? 'translate-y-2 rotate-45' : ''}`} />
           <span className={`h-px w-5 bg-current transition-opacity ${menuOpen ? 'opacity-0' : 'opacity-100'}`} />
@@ -70,7 +70,7 @@ export function Nav() {
 
       <div
         id="mobile-navigation"
-        className={`border-t border-hairline bg-bg/95 px-5 pb-5 pt-2 backdrop-blur-xl transition-[max-height,opacity] duration-200 md:hidden ${
+        className={`border-t border-hairline bg-bg/95 px-5 pb-5 pt-2 backdrop-blur-xl transition-[max-height,opacity] duration-200 nav:hidden ${
           menuOpen ? 'max-h-96 opacity-100' : 'max-h-0 overflow-hidden opacity-0'
         }`}
       >

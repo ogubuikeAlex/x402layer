@@ -48,17 +48,17 @@ export const TABS: DocTab[] = [
             [
               'Facilitator',
               'Standards-compliant x402 verify/settle with smart routing + trust enrichment',
-              'MVP: verify, settle (direct), supported',
+              'Live: verify, settle (direct + batch), fees + on-chain collection, supported, metrics; optional upstream Casper facilitator delegation',
             ],
             [
               'KYX Registry',
               'Agent DIDs, operator KYC, composable trust scores',
-              'MVP: registration + 3-dimension scoring + settlement ingestion',
+              'Live: MongoDB store, email magic links, operator usernames, paginated search, on-chain backfill',
             ],
             [
               'Client SDK',
               'Auto-handles 402, signs with DID, spend budget, local ledger',
-              'MVP: TypeScript SDK + mock RWA merchant',
+              'Live: TypeScript (@fourotwo/agent-sdk) + Python (fourotwo-agent-sdk) with cross-language signature parity',
             ],
           ]}
         />
@@ -97,6 +97,21 @@ export const TABS: DocTab[] = [
           Chain-specific code lives behind a <strong>ChainAdapter</strong> interface (ADR AD-2).
           Casper is the primary path; Base is the fallback. The facilitator core never imports chain
           code directly.
+        </Callout>
+        <Callout>
+          <strong>Extends Casper&apos;s official facilitator.</strong> layer402 doesn&apos;t compete
+          with the{' '}
+          <a
+            href="https://docs.cspr.cloud/x402-facilitator-api"
+            className="text-accent underline"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Casper x402 Facilitator
+          </a>{' '}
+          (CSPR.cloud, part of the Casper AI Toolkit) - it can delegate on-chain settlement to it and
+          add identity, trust, receipts and batching on top. See{' '}
+          <em>Extend the Casper x402 Facilitator</em> under Facilitator.
         </Callout>
       </>
     ),
@@ -155,37 +170,48 @@ export const TABS: DocTab[] = [
           {code('trust_unavailable: true')}.
         </Callout>
 
-        <Endpoint method="POST" path="/settle" status="mvp">
-          Settle a verified payment. Direct on-chain mode in MVP; returns a signed receipt.
+        <Endpoint method="POST" path="/settle" status="live">
+          Settle a verified payment. Direct or batched; every settlement accrues the platform fee.
         </Endpoint>
         <CodeBlock
           lang="json"
           code={`// request
-{ "verification_id": "vrf_...", "settlement_mode": "auto" }   // auto | direct
+{ "verification_id": "vrf_...", "settlement_mode": "auto" }   // auto | direct | batch
 
 // response
 {
   "settlement_id": "stl_...",
   "status": "pending",
-  "mode": "direct",
-  "receipt": { ...SettlementReceipt, "facilitatorSignature": "<ed25519 hex>" }
+  "mode": "direct",             // "batch" adds batch_id; receipt is signed immediately either way
+  "fee_motes": "2500000",       // FOUROTWO_FEE_BPS of amount (default 10 bps)
+  "receipt": { ...SettlementReceipt, "feeMotes": "2500000", "facilitatorSignature": "<ed25519 hex>" }
 }`}
         />
 
-        <Endpoint method="GET" path="/supported" status="mvp">
-          x402-v2 capability advertisement: networks, tokens, features.
+        <Endpoint method="POST" path="/batch/settle" status="live">
+          Force-flush the pending batch: one aggregated SettlementVault record settles the whole
+          queue (window: BATCH_WINDOW_MS, early flush at BATCH_MAX_PENDING).
         </Endpoint>
-        <Endpoint method="POST" path="/operators/verify-request" status="mvp">
-          Request an email magic link. Local dev logs and returns the token.
+        <Endpoint method="GET" path="/batch/status" status="live">
+          Live queue state: pending count, queued motes, window, last flush.
         </Endpoint>
-        <Endpoint method="GET" path="/operators/verify/:token" status="mvp">
-          Mark the operator email as verified.
+        <Endpoint method="GET" path="/fees" status="live">
+          Platform revenue report (admin token): accrued bps fees, totals, per-merchant breakdown,
+          and collected vs uncollected. Persisted to FEES_DATA_FILE (or MongoDB when configured).
         </Endpoint>
-        <Endpoint method="GET" path="/trust/{did}" status="mvp">
+        <Endpoint method="POST" path="/fees/collect" status="live">
+          Sweep accrued fees on-chain to the fee recipient (admin token). Disabled unless fee
+          collection is enabled - see <strong>Fees &amp; collection</strong> below.
+        </Endpoint>
+        <Endpoint method="GET" path="/supported" status="live">
+          x402-v2 capability advertisement: networks, tokens, features, fee_bps, batch config.
+        </Endpoint>
+        <Endpoint method="GET" path="/metrics" status="live">
+          Prometheus text exposition: per-route request counts/latency + verification/settlement
+          counters.
+        </Endpoint>
+        <Endpoint method="GET" path="/trust/{did}" status="live">
           Public trust score query served by the KYX Registry.
-        </Endpoint>
-        <Endpoint method="POST" path="/batch/settle" status="planned">
-          Force-flush a payer's pending batch (post-MVP settlement mode).
         </Endpoint>
 
         <DocH3>Rejection reasons</DocH3>
@@ -198,9 +224,54 @@ export const TABS: DocTab[] = [
             ['AGENT_NOT_REGISTERED', 'DID unknown to the registry'],
             ['AGENT_BLOCKED', 'Agent is BLOCKED or below merchant min score'],
             ['INSUFFICIENT_BALANCE', 'Payer balance below required amount'],
+            ['DID_KEY_MISMATCH', 'Signing key does not own the claimed agent DID'],
+            ['TRUST_UNAVAILABLE', 'Trust registry unreachable - verification fails closed'],
+            ['BALANCE_UNAVAILABLE', 'Payer balance could not be read - fails closed'],
             ['UNSUPPORTED_NETWORK', 'No adapter for the envelope network'],
             ['MALFORMED_PAYLOAD', 'Envelope / signature / DID could not be parsed'],
           ]}
+        />
+
+        <DocH3>Fees &amp; collection</DocH3>
+        <Prose>
+          Every settlement accrues a basis-point platform fee ({code('FOUROTWO_FEE_BPS')}, default
+          10 = 0.10%) to the fee recipient. By default fees are only <strong>accrued</strong> (tracked
+          as owed) - nothing moves on-chain. Set {code('FEE_COLLECTION_ENABLED=true')} (plus a
+          facilitator key and a {code('FOUROTWO_FEE_RECIPIENT')} Casper <strong>public key</strong>) to
+          enable {code('POST /fees/collect')}, which sweeps all uncollected fees to the recipient in
+          one native transfer and marks them collected. Native transfers have a 2.5 CSPR minimum, so
+          collection only fires once accrued fees clear that floor. {code('GET /fees')} reports the
+          collected vs uncollected split.
+        </Prose>
+
+        <DocH3>Extend the Casper x402 Facilitator</DocH3>
+        <Prose>
+          Rather than broadcasting its own settlement, the facilitator can <strong>delegate</strong>
+          the on-chain settle to the official{' '}
+          <a
+            href="https://docs.cspr.cloud/x402-facilitator-api"
+            className="text-accent underline"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Casper x402 Facilitator
+          </a>{' '}
+          (CSPR.cloud) and keep everything we add on top - DID&rarr;key binding, trust gating, signed
+          receipts, batching, vault records and fees. Set {code('UPSTREAM_FACILITATOR_URL')} to turn it
+          on. That scheme settles <strong>CEP-18</strong> tokens authorized by an EIP-712{' '}
+          {code('transfer_with_authorization')} signature; the agent SDK ships{' '}
+          {code('createCasperX402Payment()')} to produce those payloads and{' '}
+          {code('verifyCasperX402Payment()')} to confirm acceptance against the upstream{' '}
+          {code('/verify')} before relying on it.
+        </Prose>
+        <CodeBlock
+          lang="bash"
+          code={`# facilitator env - delegate settlement to the upstream Casper x402 facilitator
+UPSTREAM_FACILITATOR_URL=https://x402-facilitator.cspr.cloud
+UPSTREAM_FACILITATOR_ACCESS_TOKEN=<cspr.cloud access token>
+UPSTREAM_FACILITATOR_NETWORK=casper:casper-test        # or casper:casper (mainnet)
+UPSTREAM_FACILITATOR_ASSET=<CEP-18 contract package hash>
+UPSTREAM_FACILITATOR_ASSET_METADATA={"name":"Cep18x402","version":"1","decimals":"2","symbol":"CSPR"}`}
         />
       </>
     ),
@@ -218,8 +289,18 @@ export const TABS: DocTab[] = [
         <Prose>
           The identity backbone. Developers register an agent once; registration produces an on-chain
           DID linked to a KYC&apos;d operator, and every settled transaction contributes to a public,
-          composable trust score. The MVP service is file-backed for local demo reliability and keeps
-          Casper writes as non-blocking sync hooks (AD-3).
+          composable trust score. Storage is <strong>MongoDB</strong> when {code('MONGODB_URI')} is
+          set (required on ephemeral-disk hosts) with the JSON-file store as the local-dev fallback.
+          Casper writes stay non-blocking (AD-3) and a <strong>startup backfill</strong> retries any
+          agent whose on-chain registration previously failed.
+        </Prose>
+
+        <DocH3>Operator usernames (pseudonyms)</DocH3>
+        <Prose>
+          Operators carry a unique, case-insensitive {code('username')} chosen at verify-request time
+          (auto-generated from the email hash if omitted). Public agent listings show{' '}
+          {code('@username')} - <strong>operator emails never leave the registry</strong>. Agent
+          names are globally unique (case-insensitive).
         </Prose>
 
         <DocH3>DID format</DocH3>
@@ -256,24 +337,40 @@ score = 0.5 * completionRate
           headers={['Score', 'Tier', 'Meaning']}
           rows={[
             ['90-100', <span className="text-accent3">ELITE</span>, 'Long track record, KYC, ~0 disputes'],
-            ['70-89', <span className="text-accent3">VERIFIED</span>, 'Established agent, good history'],
-            ['40-69', <span className="text-accent">STANDARD</span>, 'New / unverified agent'],
-            ['1-39', <span className="text-accent-warn">RESTRICTED</span>, 'Anomalous or failed KYC'],
+            ['70-89', <span className="text-accent3">VERIFIED</span>, 'Established agent, good settlement history'],
+            ['40-69', <span className="text-accent">STANDARD</span>, 'Verified operator, building a track record'],
+            ['1-39', <span className="text-accent-warn">RESTRICTED</span>, 'New agent (no history yet) or anomalous - earn trust by settling'],
             ['0', <span className="text-accent2">BLOCKED</span>, 'Known fraud / active dispute'],
           ]}
         />
-
-        <DocH3>Operator verification (MVP)</DocH3>
         <Prose>
-          MVP &quot;KYC&quot; is email magic-link verification only (AD-4) - real in mechanism, trivial
-          in rigor. The full document-verification pipeline is post-MVP.
+          Trust is <strong>earned, not granted</strong>: a brand-new agent - even under a verified
+          operator - starts around <strong>30 (RESTRICTED)</strong>, because completion rate and volume
+          are both zero with no settled history. Each confirmed settlement raises the score; a few
+          successful settlements move an agent into VERIFIED.
         </Prose>
 
-        <Endpoint method="POST" path="/agents/register" status="mvp">
-          Register an agent DID. Requires a verified operator email.
+        <DocH3>Operator verification</DocH3>
+        <Prose>
+          Email magic-link verification (AD-4): with SMTP configured (nodemailer + a Gmail App
+          Password) the link is <strong>actually emailed</strong> and {code('dev_token')} disappears
+          from the API response; unconfigured local dev keeps the token-in-response flow. Tokens are
+          single-use and re-requests for verified operators are idempotent
+          ({code('already_verified')}). The full document-verification pipeline is post-MVP.
+        </Prose>
+
+        <Endpoint method="GET" path="/agents" status="live">
+          Paginated + searchable listing ({code('q')}, {code('page')}, {code('limit')}); returns
+          operator usernames, never emails.
         </Endpoint>
-        <Endpoint method="GET" path="/trust/{did}" status="mvp">
+        <Endpoint method="POST" path="/agents/register" status="live">
+          Register an agent DID. Requires a verified operator email; agent name is globally unique.
+        </Endpoint>
+        <Endpoint method="GET" path="/trust/{did}" status="live">
           Public trust profile (sub-second, reads off-chain DB - AD-3).
+        </Endpoint>
+        <Endpoint method="GET" path="/metrics" status="live">
+          Prometheus metrics: registrations, settlements ingested, emails sent, on-chain writes.
         </Endpoint>
       </>
     ),
@@ -326,9 +423,12 @@ get_settlement(settlement_id) -> Option<SettlementRecord>`}
           batch settlement mode).
         </Prose>
 
-        <Callout tone="warn">
-          Contract code + deploy tooling are complete. The live testnet deploy needs a funded testnet
-          key - see {code('KNOWN_ISSUES.md')}. Hashes land in {code('contracts/deployed-addresses.json')}.
+        <Callout>
+          <strong>Deployed on casper-test</strong> - hashes in{' '}
+          {code('contracts/deployed-addresses.json')}: KyxRegistry{' '}
+          {code('hash-1e2b354d…a312d0')} and SettlementVault {code('hash-7601c689…a0ecf6')}. The
+          registry backfills failed on-chain registrations at startup, and batched settlements write
+          one aggregated vault record per flush.
         </Callout>
       </>
     ),
@@ -342,11 +442,13 @@ get_settlement(settlement_id) -> Option<SettlementRecord>`}
     status: 'mvp',
     content: (
       <>
-        <DocH2 status="mvp">@fourotwo/agent-sdk</DocH2>
+        <DocH2 status="live">@fourotwo/agent-sdk + fourotwo-agent-sdk (Python)</DocH2>
         <Prose>
           A drop-in {code('fetch')} replacement that handles the entire x402 client flow: detect 402,
-          parse terms, check budget, sign with the agent&apos;s DID, retry, and log. The TypeScript
-          package ships in Milestone&nbsp;2. Python SDK remains a P1 stretch.
+          parse terms, check budget, sign with the agent&apos;s DID, retry, and log. Ships in
+          TypeScript ({code('@fourotwo/agent-sdk')}, npm) and Python ({code('fourotwo-agent-sdk')},{' '}
+          {code('packages/agent-sdk-py')}) - the Python port is verified byte-identical against TS
+          vectors for DIDs, canonical messages, and ed25519 signatures.
         </Prose>
         <CodeBlock
           lang="ts"
@@ -355,7 +457,7 @@ get_settlement(settlement_id) -> Option<SettlementRecord>`}
 const agent = new fourotwoAgent({
   did: process.env.FOUROTWO_AGENT_DID,
   privateKeyHex: process.env.FOUROTWO_PRIVATE_KEY,   // never leaves the client
-  budget: { dailyUsd: 10.0, perRequestUsd: 0.5 }, // USD limits
+  budget: { dailyTokens: 10.0, perRequestTokens: 0.5 }, // whole-token limits
   network: 'casper',
 });
 
@@ -413,13 +515,14 @@ node demos/rwa-oracle-agent/agent.mjs         # runs the loop, logs each step`}
         <DocTable
           headers={['Route', 'Purpose', 'Status']}
           rows={[
-            ['/', 'Overview + live facilitator status', 'mvp'],
-            ['/playground', 'Live /verify → /settle demo loop', 'mvp'],
-            ['/docs', 'Public, user-facing platform docs + API reference', 'mvp'],
-            ['/xfourohtwo-daducks', 'These internal developer docs (unlinked)', 'mvp'],
-            ['/agents', 'Agent list, registration, trust cards', 'mvp'],
-            ['/agents/[did]', 'Agent detail + transaction history', 'mvp'],
-            ['/wallet', 'CSPR balance + faucet funding', 'mvp'],
+            ['/', 'Overview + live facilitator status', 'live'],
+            ['/playground', 'Live /verify → /settle demo loop', 'live'],
+            ['/docs', 'Public, user-facing platform docs + API reference', 'live'],
+            ['/xfourohtwo-daducks', 'These internal developer docs (unlinked)', 'live'],
+            ['/agents', 'Search + paginated agent list, registration (username + email), per-agent transaction refresh', 'live'],
+            ['/agents/[did]', 'Agent detail + transaction history', 'live'],
+            ['/wallet', 'CSPR balance + faucet funding', 'live'],
+            ['/api/health', 'Aggregate uptime probe (503 when registry/facilitator down)', 'live'],
           ]}
         />
 
@@ -486,6 +589,8 @@ interface SettlementReceipt {
   network: ChainNetwork;
   settlementMode: 'direct' | 'batch' | 'channel' | 'l2';
   txHash?: string;
+  batchId?: string;         // present for batched settlements
+  feeMotes?: string;        // platform fee accrued on this settlement
   trustScore: number;       // score at settlement time
   settledAt: string;
   facilitatorSignature: string;   // layer402 signs every receipt
@@ -529,15 +634,25 @@ type ChainNetwork = 'base' | 'casper' | 'solana' | 'stellar' | 'polygon';`}
         <DocTable
           headers={['Mode', 'When', 'Status']}
           rows={[
-            ['Direct on-chain', 'First-time pairs, large transactions', 'mvp'],
-            ['Batched', 'Many low-value settlements (60s window)', 'upcoming'],
+            ['Direct on-chain', 'First-time pairs, large transactions', 'live'],
+            ['Batched', 'Many low-value settlements → one vault record per 60s window / 200 pending / manual flush', 'live'],
             ['Payment channel', 'High-frequency trusted pairs (off-chain)', 'planned'],
             ['L2 / rollup', 'When base-chain gas spikes', 'planned'],
           ]}
         />
         <Prose>
-          MVP settles direct on-chain only. The smart router (auto-selecting the cheapest correct mode)
-          is post-MVP - the {code('/settle')} contract already accepts {code('settlement_mode: "auto"')}.
+          {code('settlement_mode: "auto"')} settles direct by default; set{' '}
+          {code('BATCH_AUTO_THRESHOLD_MOTES')} and auto routes payments at/below the threshold into
+          the batch queue ({code('/verify')} then recommends {code('batch')}). Receipts are signed at
+          enqueue time - only the on-chain write is deferred.
+        </Prose>
+
+        <DocH2>Platform fees</DocH2>
+        <Prose>
+          Every settlement (facilitator or SDK path - both funnel through {code('/settle')}) accrues{' '}
+          {code('FOUROTWO_FEE_BPS')} (default 10 bps = 0.10%) to {code('FOUROTWO_FEE_RECIPIENT')}.
+          Fees ride on the signed receipt ({code('feeMotes')}) and aggregate at {code('GET /fees')} -
+          the collection report a periodic sweep settles against.
         </Prose>
 
         <DocH2>Security model</DocH2>
@@ -553,7 +668,8 @@ type ChainNetwork = 'base' | 'casper' | 'solana' | 'stellar' | 'polygon';`}
         />
         <Callout tone="warn">
           MVP simplifications (per the ADR): off-chain trust score with best-effort on-chain sync
-          (AD-3), email-only operator verification (AD-4), reject-don&apos;t-queue budgets (AD-5).
+          (AD-3), email magic-link operator verification instead of full document KYC (AD-4),
+          reject-don&apos;t-queue budgets (AD-5).
         </Callout>
       </>
     ),
@@ -588,6 +704,11 @@ type ChainNetwork = 'base' | 'casper' | 'solana' | 'stellar' | 'polygon';`}
               <span className="text-accent3">built*</span>,
             ],
             ['M4', 'Reliability pass, README, demo video, submission', <span className="text-text-dim">next</span>],
+            [
+              'Post-MVP (shipped)',
+              'MongoDB store · emailed magic links · operator usernames · paginated agent search · autonomous Atlas payments · Python SDK · batched settlement · platform fees · /metrics + /health monitoring',
+              <span className="text-accent3">built</span>,
+            ],
           ]}
         />
         <Callout tone="warn">

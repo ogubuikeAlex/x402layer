@@ -12,6 +12,12 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="logo">▲</span> Atlas <span class="muted">Research Agent</span></div>
+    <div class="autopay">
+      <label class="ap-label" for="autopay-toggle">
+        <input type="checkbox" id="autopay-toggle" checked />
+        <span id="autopay-state">autonomous</span>
+      </label>
+    </div>
     <div class="wallet" id="wallet">
       <div class="w-row"><span class="w-label">agent wallet</span><span class="w-bal" id="w-balance">…</span></div>
       <div class="w-did" id="w-did">loading identity…</div>
@@ -24,7 +30,8 @@
       <p>
         Atlas is an autonomous agent that pulls oracle-signed real-world-asset data on demand.
         The data lives behind a pay-per-call API - Atlas holds a wallet and settles each request
-        with <strong>layer402</strong>. When it hits a paywall, you'll be asked to approve the spend.
+        with <strong>layer402</strong> on its own. Flip the header toggle to "ask first" if you
+        want to approve each spend manually.
       </p>
     </section>
 

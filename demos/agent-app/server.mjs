@@ -20,6 +20,7 @@ import { decodeEnvelope, deriveAddress } from '../../packages/types/dist/index.j
 import { keypairFromPrivateKey, generateCasperKeypair, signPayment } from '../../packages/agent-sdk/dist/index.js';
 import { broadcastCsprTransfer } from './casper-transfer.mjs';
 import { registerWithKyx } from './register.mjs';
+import { createMetrics, instrumentRequest } from '../shared/metrics.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -47,6 +48,9 @@ const CSPR_CLOUD_API_URL = process.env.CSPR_CLOUD_API_URL ?? 'https://api.testne
 const CSPR_CLOUD_API_KEY = process.env.CSPR_CLOUD_API_KEY || undefined;
 // Default merchant the demo UI talks to (the Meridian paid API).
 const MERCHANT_URL = process.env.MERCHANT_URL ?? 'http://localhost:5100';
+// Autonomous mode: pay 402s immediately without a human approval step.
+// Set AGENT_AUTO_PAY=false to bring back the approval modal (UI can also toggle).
+const AUTO_PAY = process.env.AGENT_AUTO_PAY !== 'false';
 // Casper network used to broadcast the real settlement transfer.
 const CASPER_CHAIN_NAME = process.env.CASPER_CHAIN_NAME ?? 'casper-test';
 const NODE_RPCS = [
@@ -221,10 +225,15 @@ async function serveStatic(res, pathname) {
   }
 }
 
+const metrics = createMetrics('atlas');
+const normalizeRoute = (p) => (p.startsWith('/api/') ? p : 'static');
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
   const { pathname } = url;
+  if (instrumentRequest(req, res, pathname, metrics, normalizeRoute)) return;
 
+  try {
   // ── Wallet: identity + live balance ───────────────────────────────
   if (req.method === 'GET' && pathname === '/api/wallet') {
     const motes = await balanceMotes();
@@ -235,6 +244,7 @@ const server = createServer(async (req, res) => {
       balanceMotes: motes,
       funded: FUNDED,
       merchantUrl: MERCHANT_URL,
+      autoPay: AUTO_PAY,
     });
   }
 
@@ -289,9 +299,29 @@ const server = createServer(async (req, res) => {
       return json(res, 502, { error: 'SIGNING_FAILED', detail: String(err) });
     }
 
-    // Real on-chain settlement: the agent signs + broadcasts an actual native
-    // CSPR transfer to the merchant. Only the payer can move its own funds, so
-    // this happens agent-side (the facilitator still verifies + issues a receipt).
+    // Authorize FIRST: let the merchant verify + settle through the facilitator
+    // before any funds move. A rejection here (bad trust, replay, expiry,
+    // facilitator down) must not leave the agent having paid for nothing.
+    let paidRes, paidBody;
+    try {
+      paidRes = await fetch(targetUrl, {
+        headers: {
+          'PAYMENT-REQUIRED': signed.paymentRequiredEncoded,
+          'PAYMENT-SIGNATURE': signed.paymentSignature,
+          'X-FOUROTWO-DID': keypair.did,
+        },
+      });
+      paidBody = await paidRes.json().catch(() => ({}));
+    } catch (err) {
+      return json(res, 502, { error: 'MERCHANT_UNREACHABLE', detail: String(err) });
+    }
+
+    if (!paidRes.ok) {
+      metrics.inc('payments_total', { result: 'rejected' });
+      return json(res, 402, { error: 'PAYMENT_REJECTED', status: paidRes.status, detail: paidBody });
+    }
+
+    // Authorized: only now broadcast the supplementary native CSPR transfer.
     let transfer;
     if (!FUNDED) {
       transfer = { skipped: true, reason: 'wallet_unfunded' };
@@ -310,25 +340,11 @@ const server = createServer(async (req, res) => {
       }
     }
 
-    let paidRes, paidBody;
-    try {
-      paidRes = await fetch(targetUrl, {
-        headers: {
-          'PAYMENT-REQUIRED': signed.paymentRequiredEncoded,
-          'PAYMENT-SIGNATURE': signed.paymentSignature,
-          'X-FOUROTWO-DID': keypair.did,
-          // Report the real settlement transfer so the merchant can show it too.
-          'X-FOUROTWO-SETTLEMENT-TX': transfer.txHash ?? '',
-        },
-      });
-      paidBody = await paidRes.json().catch(() => ({}));
-    } catch (err) {
-      return json(res, 502, { error: 'MERCHANT_UNREACHABLE', detail: String(err) });
-    }
-
-    if (!paidRes.ok) {
-      return json(res, 402, { error: 'PAYMENT_REJECTED', status: paidRes.status, detail: paidBody });
-    }
+    metrics.inc('payments_total', { result: 'success' });
+    metrics.inc('spend_motes_total', undefined, Number(terms.amount));
+    metrics.inc('transfers_total', {
+      result: transfer.txHash ? 'broadcast' : transfer.skipped ? 'skipped' : 'error',
+    });
 
     const after = await balanceMotes(); // live re-read (may lag settlement finality)
     const deduct = BigInt(terms.amount);
@@ -354,6 +370,12 @@ const server = createServer(async (req, res) => {
 
   if (req.method === 'GET') return serveStatic(res, pathname);
   return json(res, 404, { error: 'NOT_FOUND' });
+  } catch (err) {
+    // Never leave a request hanging: any unhandled throw (e.g. a bad BigInt on
+    // attacker-controlled input) still writes a response.
+    if (!res.headersSent) return json(res, 500, { error: 'SERVER_ERROR', detail: String(err?.message ?? err) });
+    res.end();
+  }
 });
 
 /**

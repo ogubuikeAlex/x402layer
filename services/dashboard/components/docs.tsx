@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 export type DocStatus = 'live' | 'mvp' | 'upcoming' | 'planned';
 
@@ -71,16 +71,28 @@ export function Callout({ children, tone = 'info' }: { children: ReactNode; tone
 
 export function CodeBlock({ code, lang = '' }: { code: string; lang?: string }) {
   const [copied, setCopied] = useState(false);
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(resetTimer.current), []);
+
+  async function copy() {
+    try {
+      // Only report success if the write actually resolved (it rejects when the
+      // user/browser denies clipboard access).
+      await navigator.clipboard?.writeText(code);
+      setCopied(true);
+      clearTimeout(resetTimer.current);
+      resetTimer.current = setTimeout(() => setCopied(false), 1200);
+    } catch {
+      // Clipboard denied - leave the label unchanged rather than lying "copied".
+    }
+  }
+
   return (
     <div className="mt-5 overflow-hidden border border-hairline bg-surface">
       <div className="flex items-center justify-between border-b border-hairline bg-black/30 px-4 py-2">
         <span className="text-[10px] uppercase tracking-wide2 text-text-dim">{lang || 'code'}</span>
         <button
-          onClick={() => {
-            navigator.clipboard?.writeText(code);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1200);
-          }}
+          onClick={() => void copy()}
           className="text-[10px] uppercase tracking-wide2 text-text-dim transition-colors hover:text-accent"
         >
           {copied ? 'copied' : 'copy'}

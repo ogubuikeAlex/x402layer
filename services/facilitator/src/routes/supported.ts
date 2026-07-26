@@ -16,9 +16,13 @@ export function registerSupportedRoute(app: FastifyInstance, ctx: AppContext): v
             ? { network, tokens: ['USDC', 'EURC'] }
             : { network, tokens: [] },
       ),
-      features: ['kyx_scoring', 'direct_settlement'],
+      features: ['kyx_scoring', 'direct_settlement', 'batched_settlement', 'fee_collection'],
       minimum_trust_score_enforcement: true,
     };
-    return body;
+    return {
+      ...body,
+      fee_bps: ctx.config.fees.bps,
+      batch: { window_ms: ctx.config.batch.windowMs, max_pending: ctx.config.batch.maxPending },
+    };
   });
 }

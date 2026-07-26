@@ -34,7 +34,7 @@ import { fourotwoAgent } from "@fourotwo/agent-sdk";
 
 const agent = new fourotwoAgent({
   privateKeyHex: process.env.FOUROTWO_PRIVATE_KEY, // signs locally, never sent
-  budget: { dailyUsd: 10, perRequestUsd: 0.5 }, // optional spend caps
+  budget: { dailyTokens: 10, perRequestTokens: 0.5 }, // optional spend caps (whole tokens)
 });
 
 // behaves exactly like fetch but pays when it has to
@@ -67,16 +67,18 @@ const { privateKeyHex, publicKeyHex, did } = generateCasperKeypair();
 
 ## Spend budgets
 
-Budgets **reject** - they do not queue. If a payment would exceed a limit, the SDK
-throws `BudgetExceededError` **before** anything is signed, so a runaway loop can
-never drain the wallet. The daily counter resets at UTC midnight.
+Budgets are denominated in **whole token units** (e.g. CSPR or USDC), converted from
+the on-chain amount by each token's decimals - there is no USD conversion. Budgets
+**reject** - they do not queue. If a payment would exceed a limit, the SDK throws
+`BudgetExceededError` **before** anything is signed, so a runaway loop can never
+drain the wallet. The daily counter resets at UTC midnight.
 
 ```ts
 import { fourotwoAgent, BudgetExceededError } from "@fourotwo/agent-sdk";
 
 const agent = new fourotwoAgent({
   privateKeyHex: process.env.FOUROTWO_PRIVATE_KEY,
-  budget: { dailyUsd: 25, perRequestUsd: 1 },
+  budget: { dailyTokens: 25, perRequestTokens: 1 },
 });
 
 try {
@@ -95,7 +97,7 @@ try {
 | `privateKeyHex` | `string` **(required)** | Agent signing key. Stays in your process.        |
 | `did`           | `string`                | Defaults to the DID derived from the key.        |
 | `publicKeyHex`  | `string`                | Override the derived public key (rarely needed). |
-| `budget`        | `SpendBudget`           | `{ dailyUsd?, perRequestUsd?, amountToUsd? }`.   |
+| `budget`        | `SpendBudget`           | `{ dailyTokens?, perRequestTokens?, amountToTokens? }`. |
 | `logFilePath`   | `string`                | Where to persist the transaction ledger.         |
 | `fetchImpl`     | `typeof fetch`          | Custom fetch (tracing, tests, proxies).          |
 

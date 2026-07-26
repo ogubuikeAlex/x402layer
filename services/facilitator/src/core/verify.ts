@@ -5,7 +5,7 @@ import type {
   VerifyRequest,
   VerifyResponse,
 } from '@fourotwo/types';
-import { decodeEnvelope, base64Decode, isValidDid, parseDid } from '@fourotwo/types';
+import { decodeEnvelope, base64Decode, isValidDid, parseDid, deriveAddress } from '@fourotwo/types';
 
 import type { AppContext } from '../context.js';
 import { verificationId } from '../util/ids.js';
@@ -20,7 +20,6 @@ interface SignatureEnvelope {
   signature: string;
 }
 
-/** `payment_signature` is base64 of `{ payer, signature }` (see .env.example / README). */
 function decodeSignatureEnvelope(b64: string): SignatureEnvelope | null {
   try {
     const json = new TextDecoder().decode(base64Decode(b64));
@@ -32,23 +31,25 @@ function decodeSignatureEnvelope(b64: string): SignatureEnvelope | null {
   }
 }
 
-function fail(reason: Parameters<typeof makeFail>[0], detail: string): VerifyOutcome {
-  return { status: 400, body: makeFail(reason, detail) };
+type FailReason =
+  | 'SIGNATURE_INVALID'
+  | 'AMOUNT_MISMATCH'
+  | 'EXPIRED'
+  | 'INSUFFICIENT_BALANCE'
+  | 'AGENT_NOT_REGISTERED'
+  | 'AGENT_BLOCKED'
+  | 'DID_KEY_MISMATCH'
+  | 'TRUST_UNAVAILABLE'
+  | 'BALANCE_UNAVAILABLE'
+  | 'REPLAYED'
+  | 'UNSUPPORTED_NETWORK'
+  | 'MALFORMED_PAYLOAD';
+
+function fail(reason: FailReason, detail: string, status = 400): VerifyOutcome {
+  return { status, body: makeFail(reason, detail) };
 }
 
-function makeFail(
-  reason:
-    | 'SIGNATURE_INVALID'
-    | 'AMOUNT_MISMATCH'
-    | 'EXPIRED'
-    | 'INSUFFICIENT_BALANCE'
-    | 'AGENT_NOT_REGISTERED'
-    | 'AGENT_BLOCKED'
-    | 'REPLAYED'
-    | 'UNSUPPORTED_NETWORK'
-    | 'MALFORMED_PAYLOAD',
-  detail: string,
-): VerifyResponse {
+function makeFail(reason: FailReason, detail: string): VerifyResponse {
   return { valid: false, reason, detail };
 }
 
@@ -81,9 +82,11 @@ export async function runVerify(ctx: AppContext, req: VerifyRequest): Promise<Ve
     return fail('UNSUPPORTED_NETWORK', `No adapter for network "${envelope.network}"`);
   }
 
-  // (1b) Expiry
   const nowSec = Math.floor(Date.now() / 1000);
-  if (envelope.expiry && envelope.expiry < nowSec) {
+  if (!envelope.expiry || !Number.isFinite(envelope.expiry)) {
+    return fail('MALFORMED_PAYLOAD', 'payment_required.expiry is required');
+  }
+  if (envelope.expiry < nowSec) {
     return fail('EXPIRED', `Payment expired at ${envelope.expiry}, now ${nowSec}`);
   }
 
@@ -95,30 +98,33 @@ export async function runVerify(ctx: AppContext, req: VerifyRequest): Promise<Ve
     paymentRequired: envelope,
   };
 
-  // (2) Signature
+
   const sigOk = await adapter.verifySignature(payload);
   if (!sigOk) return fail('SIGNATURE_INVALID', 'Signature does not verify against payer');
 
-  // (3) Replay
-  if (ctx.replayCache.has(envelope.network, envelope.nonce)) {
+  let derivedAddress: string;
+  try {
+    derivedAddress = deriveAddress(envelope.network, sigEnv.payer);
+  } catch {
+    return fail('MALFORMED_PAYLOAD', 'payer public key is not valid for this network');
+  }
+  if (derivedAddress.toLowerCase() !== parsedDid.address.toLowerCase()) {
+    return fail('DID_KEY_MISMATCH', 'agent_did does not belong to the signing key');
+  }
+
+  if (await ctx.replayCache.has(envelope.network, envelope.nonce)) {
     return fail('REPLAYED', `Nonce ${envelope.nonce} already used within the replay window`);
   }
 
-  // (4) Trust resolution
   let trust: AgentTrustSummary | null;
   try {
     trust = await ctx.trustClient.getTrustSummary(req.agent_did);
-  } catch {
-    trust = {
-      did: req.agent_did,
-      trust_score: null,
-      trust_tier: null,
-      operator_kyc: false,
-      transaction_count: 0,
-      completion_rate: 0,
-      flags: ['trust_unavailable'],
-      trust_unavailable: true,
-    };
+  } catch (err) {
+    return fail(
+      'TRUST_UNAVAILABLE',
+      `Trust registry unavailable: ${(err as Error).message}`,
+      503,
+    );
   }
   if (trust === null) {
     return fail('AGENT_NOT_REGISTERED', `DID ${req.agent_did} is not registered`);
@@ -126,36 +132,41 @@ export async function runVerify(ctx: AppContext, req: VerifyRequest): Promise<Ve
   if (trust.trust_tier === 'BLOCKED') {
     return fail('AGENT_BLOCKED', `DID ${req.agent_did} is BLOCKED`);
   }
-  if (
-    envelope.minTrustScore !== undefined &&
-    trust.trust_score !== null &&
-    trust.trust_score < envelope.minTrustScore
-  ) {
-    return fail(
-      'AGENT_BLOCKED',
-      `Trust score ${trust.trust_score} below merchant minimum ${envelope.minTrustScore}`,
-    );
+  if (envelope.minTrustScore !== undefined) {
+    if (trust.trust_score === null || trust.trust_score < envelope.minTrustScore) {
+      return fail(
+        'AGENT_BLOCKED',
+        `Trust score ${trust.trust_score ?? 'unscored'} below merchant minimum ${envelope.minTrustScore}`,
+      );
+    }
   }
 
-  // (5) Balance (best-effort: a node/config failure must not break the demo)
   try {
     const ok = await adapter.checkBalance(payload.payer, BigInt(envelope.amount));
     if (!ok) return fail('INSUFFICIENT_BALANCE', 'Payer balance below required amount');
-  } catch {
-    if (!trust.flags.includes('balance_check_skipped')) trust.flags.push('balance_check_skipped');
+  } catch (err) {
+    return fail(
+      'BALANCE_UNAVAILABLE',
+      `Could not verify payer balance: ${(err as Error).message}`,
+      503,
+    );
   }
 
-  // Success - record replay + verification, return enriched result
-  ctx.replayCache.record(envelope.network, envelope.nonce);
+  const reserved = await ctx.replayCache.record(envelope.network, envelope.nonce);
+  if (!reserved) {
+    return fail('REPLAYED', `Nonce ${envelope.nonce} already used within the replay window`);
+  }
   const vid = verificationId();
-  ctx.verifications.put({ verificationId: vid, payload, trustScore: trust.trust_score });
+  await ctx.verifications.put({ verificationId: vid, payload, trustScore: trust.trust_score });
 
+  const { autoThresholdMotes } = ctx.config.batch;
   return {
     status: 200,
     body: {
       valid: true,
       agent_trust: trust,
-      settlement_recommendation: 'direct',
+      settlement_recommendation:
+        autoThresholdMotes > 0n && BigInt(envelope.amount) <= autoThresholdMotes ? 'batch' : 'direct',
       verification_id: vid,
     },
   };

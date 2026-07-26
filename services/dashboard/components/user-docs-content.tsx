@@ -63,7 +63,11 @@ score    → the agent's trust score is updated from the settled payment`}
         />
 
         <DocH2 status="live">Install the SDK</DocH2>
-        <CodeBlock lang="bash" code={`npm install @fourotwo/agent-sdk`} />
+        <CodeBlock
+          lang="bash"
+          code={`npm install @fourotwo/agent-sdk        # TypeScript / JavaScript
+pip install fourotwo-agent-sdk         # Python`}
+        />
 
         <DocH3>Make a paid request</DocH3>
         <Prose>
@@ -76,7 +80,7 @@ score    → the agent's trust score is updated from the settled payment`}
 
 const agent = new fourotwoAgent({
   privateKeyHex: process.env.FOUROTWO_PRIVATE_KEY,  // never leaves your process
-  budget: { dailyUsd: 10, perRequestUsd: 0.5 },     // optional spend limits
+  budget: { dailyTokens: 10, perRequestTokens: 0.5 }, // optional spend limits (whole tokens)
 });
 
 // agent.fetch behaves exactly like fetch - but pays when it has to
@@ -121,7 +125,7 @@ const data = await res.json();`}
             ['privateKeyHex', 'string (required)', 'Agent signing key. Stays in your process.'],
             ['did', 'string', 'Defaults to the DID derived from the key.'],
             ['publicKeyHex', 'string', 'Override the derived public key (rarely needed).'],
-            ['budget', 'SpendBudget', 'Daily + per-request USD limits. See below.'],
+            ['budget', 'SpendBudget', 'Daily + per-request limits in whole tokens. See below.'],
             ['logFilePath', 'string', 'Where to persist the transaction ledger.'],
             ['fetchImpl', 'typeof fetch', 'Custom fetch (e.g. for tracing or tests).'],
           ]}
@@ -129,9 +133,11 @@ const data = await res.json();`}
 
         <DocH3>Spend budget</DocH3>
         <Prose>
-          Budgets <strong>reject</strong> - they do not queue. If a payment would exceed a limit the
-          SDK throws {code('BudgetExceededError')} <em>before</em> the payment is ever signed, so a
-          runaway loop can never drain the wallet. The daily counter resets at UTC midnight.
+          Limits are denominated in <strong>whole token units</strong> (e.g. CSPR or USDC), converted
+          from the on-chain amount by each token&apos;s decimals - there is no USD conversion. Budgets{' '}
+          <strong>reject</strong> - they do not queue. If a payment would exceed a limit the SDK throws{' '}
+          {code('BudgetExceededError')} <em>before</em> the payment is ever signed, so a runaway loop
+          can never drain the wallet. The daily counter resets at UTC midnight.
         </Prose>
         <CodeBlock
           lang="ts"
@@ -140,8 +146,8 @@ const data = await res.json();`}
 const agent = new fourotwoAgent({
   privateKeyHex: process.env.FOUROTWO_PRIVATE_KEY,
   budget: {
-    dailyUsd: 25,        // hard daily cap
-    perRequestUsd: 1,    // max for any single request
+    dailyTokens: 25,        // hard daily cap (whole tokens)
+    perRequestTokens: 1,    // max for any single request
   },
 });
 
@@ -177,6 +183,35 @@ try {
 // [{ did, amount, recipient, network, status, responseStatus, ... }]
 // status: 'success' | 'failed' | 'budget_rejected'`}
         />
+
+        <DocH2 status="live">Python SDK</DocH2>
+        <Prose>
+          {code('fourotwo-agent-sdk')} is the Python twin: same DID derivation, same canonical
+          envelope signing (verified byte-for-byte against the TypeScript SDK), so the facilitator
+          treats both identically. Built on {code('httpx')}.
+        </Prose>
+        <CodeBlock
+          lang="py"
+          code={`from fourotwo import FourotwoAgent, SpendBudget
+
+agent = FourotwoAgent(
+    private_key_hex=os.environ["FOUROTWO_PRIVATE_KEY"],
+    budget=SpendBudget(daily_tokens=10.0, per_request_tokens=0.5),
+)
+
+# 402s are paid automatically: decode terms -> budget check -> sign -> retry
+data = agent.get("https://api.example.com/data/RE-NYC-001").json()
+
+# httpx-session style also works
+with agent.session() as s:
+    data = s.get("https://api.example.com/data/RE-NYC-001").json()
+
+agent.get_transaction_log()   # same local ledger semantics as the TS SDK`}
+        />
+        <Callout>
+          Budgets behave identically in both SDKs: {code('BudgetExceededError')} is raised{' '}
+          <em>before</em> signing. Python supports Casper keys (ed25519) today.
+        </Callout>
       </>
     ),
   },
@@ -263,6 +298,23 @@ res.end(JSON.stringify({ error: 'PAYMENT_REQUIRED' }));`}
           never fails the response, and the receipt still verifies.
         </Callout>
 
+        <DocH3>Batched settlement (high-volume APIs)</DocH3>
+        <Prose>
+          Pass {code('settlement_mode: "batch"')} to queue the payment instead of settling it
+          individually: the receipt is signed and returned <em>immediately</em>, and the facilitator
+          writes <strong>one on-chain record per 60s window</strong> - an order of magnitude less gas
+          for high-frequency callers. Force a flush with {code('POST /batch/settle')} (e.g. at
+          session end), or watch the queue at {code('GET /batch/status')}.
+        </Prose>
+
+        <DocH3>Platform fee</DocH3>
+        <Prose>
+          The facilitator accrues a basis-point platform fee on every settlement (default{' '}
+          {code('10 bps')} = 0.10% - see {code('fee_bps')} on {code('GET /supported')}). The fee
+          appears transparently on each receipt ({code('feeMotes')}) and settle response
+          ({code('fee_motes')}); accrued totals are reported at {code('GET /fees')}.
+        </Prose>
+
         <DocH3>Gating by trust</DocH3>
         <Prose>
           Set {code('minTrustScore')} in the envelope (or inspect {code('agent_trust')} on the verify
@@ -298,20 +350,21 @@ did:fourotwo:casper:3d5de8c609159a0954e773dd686fb7724428316cb30e00bdc...`}
 
         <DocH3>Register an agent</DocH3>
         <Prose>
-          Registration is two steps against the registry: verify an operator email (magic link), then
-          register the agent under that email. Keys are generated client-side - the private key never
-          touches a server. You can also do this visually on the{' '}
+          Registration is two steps against the registry: verify an operator email (a real magic-link
+          email in production; local dev returns the token directly), then register the agent under
+          that email. Keys are generated client-side - the private key never touches a server. You
+          can also do this visually on the{' '}
           <a href="/agents" className="text-accent underline">Agents</a> page.
         </Prose>
         <CodeBlock
           lang="bash"
-          code={`# 1. request an operator magic link (dev returns the token directly)
+          code={`# 1. request an operator magic link. "username" is your PUBLIC pseudonym -
+#    it is shown on agent listings instead of your email (auto-generated if omitted)
 curl -X POST $KYX_URL/operators/verify-request \\
   -H 'content-type: application/json' \\
-  -d '{ "email": "you@example.com" }'
+  -d '{ "email": "you@example.com", "username": "atlas-labs" }'
 
-# 2. confirm the email
-curl $KYX_URL/operators/verify/<token>
+# 2. click the link in your inbox (or open /operators/verify/<token> in dev)
 
 # 3. register the agent (needs the verified operator email + public key)
 curl -X POST $KYX_URL/agents/register \\
@@ -319,6 +372,12 @@ curl -X POST $KYX_URL/agents/register \\
   -d '{ "operator_email": "you@example.com", "agent_name": "RWA Oracle",
         "public_key": "<pubkey hex>", "network": "casper" }'`}
         />
+        <Callout>
+          Your email is <strong>never exposed</strong> by the public API - listings show the operator
+          username ({code('@atlas-labs')}). Usernames and agent names are both globally unique
+          (case-insensitive), so a taken name returns{' '}
+          {code('409 AGENT_NAME_ALREADY_REGISTERED')}.
+        </Callout>
 
         <DocH3>How the score works</DocH3>
         <DocTable
@@ -337,15 +396,17 @@ curl -X POST $KYX_URL/agents/register \\
           headers={['Score', 'Tier', 'Meaning']}
           rows={[
             ['90-100', <span className="text-accent3">ELITE</span>, 'Long track record, KYC, ~0 disputes'],
-            ['70-89', <span className="text-accent3">VERIFIED</span>, 'Established agent, good history'],
-            ['40-69', <span className="text-accent">STANDARD</span>, 'New / unverified agent'],
-            ['1-39', <span className="text-accent-warn">RESTRICTED</span>, 'Anomalous or failed KYC'],
+            ['70-89', <span className="text-accent3">VERIFIED</span>, 'Established agent, good settlement history'],
+            ['40-69', <span className="text-accent">STANDARD</span>, 'Verified operator, building a track record'],
+            ['1-39', <span className="text-accent-warn">RESTRICTED</span>, 'New agent (no history yet) or anomalous'],
             ['0', <span className="text-accent2">BLOCKED</span>, 'Known fraud / active dispute'],
           ]}
         />
         <Prose>
-          Read any agent&apos;s public trust profile with {code('GET /trust/{did}')} - see the API
-          reference.
+          Trust is <strong>earned, not granted</strong>: a brand-new agent starts around{' '}
+          <strong>30 (RESTRICTED)</strong> even under a verified operator, because it has no settled
+          history yet. Each confirmed settlement raises the score. Read any agent&apos;s public trust
+          profile with {code('GET /trust/{did}')} - see the API reference.
         </Prose>
       </>
     ),
@@ -410,37 +471,69 @@ curl -X POST $KYX_URL/agents/register \\
         <CodeBlock
           lang="json"
           code={`// request
-{ "verification_id": "vrf_...", "settlement_mode": "auto" }   // auto | direct
+{ "verification_id": "vrf_...", "settlement_mode": "auto" }   // auto | direct | batch
 
 // response
 {
   "settlement_id": "stl_...",
   "status": "pending",
-  "mode": "direct",
-  "receipt": { "...": "SettlementReceipt", "facilitatorSignature": "<ed25519 hex>" }
+  "mode": "direct",              // "batch" adds batch_id
+  "fee_motes": "2500000",        // platform fee accrued (fee_bps of amount)
+  "receipt": { "...": "SettlementReceipt", "feeMotes": "2500000",
+               "facilitatorSignature": "<ed25519 hex>" }
 }`}
         />
 
+        <Endpoint method="POST" path="/batch/settle" status="live">
+          Force-flush the pending batch: one on-chain record settles everything queued.
+        </Endpoint>
+        <Endpoint method="GET" path="/batch/status" status="live">
+          Current batch queue - pending count, queued motes, window, last flush result.
+        </Endpoint>
+        <Endpoint method="GET" path="/fees" status="live">
+          Platform fee report: accrued totals, per-merchant breakdown, recent entries.
+        </Endpoint>
         <Endpoint method="GET" path="/supported" status="live">
-          Capability advertisement - supported networks, tokens, and features.
+          Capability advertisement - networks, tokens, features, {code('fee_bps')}, batch window.
         </Endpoint>
         <Endpoint method="GET" path="/trust/{did}" status="live">
           Public trust profile for an agent DID (reads sub-second, served by the registry).
         </Endpoint>
 
         <DocH2>KYX Registry</DocH2>
+        <Endpoint method="GET" path="/agents" status="live">
+          Paginated agent list. Query params: {code('q')} (name search, case-insensitive),{' '}
+          {code('page')} (1-based), {code('limit')} (default 10, max 50). Returns{' '}
+          {code('{agents, total, page, limit}')}; operators appear as their public username, never
+          their email.
+        </Endpoint>
+        <Endpoint method="GET" path="/agents/{did}" status="live">
+          One agent + trust profile + full settlement history.
+        </Endpoint>
         <Endpoint method="POST" path="/operators/verify-request" status="live">
-          Request an operator email magic link. In local dev the token is returned in the response.
+          Request an operator email magic link (sent via email in production; local dev returns the
+          token). Accepts an optional unique {code('username')} - the public pseudonym shown instead
+          of the email. Returns {code('409 USERNAME_TAKEN')} on conflict.
         </Endpoint>
         <Endpoint method="GET" path="/operators/verify/:token" status="live">
-          Confirm the magic link and mark the operator email verified.
+          Confirm the magic link and mark the operator email verified (single-use).
         </Endpoint>
         <Endpoint method="POST" path="/agents/register" status="live">
-          Register an agent DID. Requires a verified operator email and the agent public key.
+          Register an agent DID. Requires a verified operator email and the agent public key. Agent
+          name is globally unique ({code('409 AGENT_NAME_ALREADY_REGISTERED')}).
         </Endpoint>
         <Endpoint method="GET" path="/trust/{did}" status="live">
           Public trust profile (score, tier, dimensions, flags).
         </Endpoint>
+
+        <DocH2>Monitoring</DocH2>
+        <Prose>
+          Both services (and the demo apps) expose {code('GET /health')} for uptime checks and{' '}
+          {code('GET /metrics')} in Prometheus text format - request counts and latency per route
+          plus domain counters (verifications, settlements, registrations, fees). The dashboard
+          aggregates the stack at {code('GET /api/health')}, returning 503 when any dependency is
+          down - point your uptime monitor there.
+        </Prose>
 
         {/* <DocH3>Self-hosting</DocH3>
         <KeyVal

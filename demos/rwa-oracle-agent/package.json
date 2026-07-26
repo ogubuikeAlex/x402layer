@@ -6,5 +6,8 @@
   "description": "First fourotwo SDK consumer - drives the full layer402 loop (M2-T7)",
   "scripts": {
     "start": "node agent.mjs"
+  },
+  "dependencies": {
+    "@fourotwo/agent-sdk": "*"
   }
 }

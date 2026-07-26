@@ -1,10 +1,11 @@
 import { loadConfig } from './config.js';
-import { buildContext } from './context.js';
+import { buildContext, initContext } from './context.js';
 import { buildServer } from './server.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
   const ctx = buildContext(config);
+  await initContext(ctx);
   const app = buildServer(ctx);
 
   try {

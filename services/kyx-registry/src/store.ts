@@ -1,14 +1,33 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 import type { ChainNetwork, TrustTier } from '@fourotwo/types';
 
+export class DuplicateKeyError extends Error {
+  readonly code = 11000;
+  constructor(readonly field: string) {
+    super(`Duplicate value for unique field "${field}"`);
+    this.name = 'DuplicateKeyError';
+  }
+}
+
+export function isDuplicateKeyError(err: unknown): boolean {
+  return !!err && typeof err === 'object' && (err as { code?: number }).code === 11000;
+}
+
 export interface OperatorRecord {
   email: string;
+  username?: string;
   verified: boolean;
   token?: string;
   tokenExpiresAt?: string;
   verifiedAt?: string;
+}
+
+export interface AgentSearchResult {
+  agents: AgentRecord[];
+  total: number;
 }
 
 export interface AgentRecord {
@@ -43,9 +62,29 @@ export interface TrustRecord {
   operatorVerified: boolean;
   volumeTierScore: number;
   transactionCount: number;
-  totalVolumeUsd: number;
+  totalVolume: number;
   flags: string[];
   lastUpdated: string;
+}
+
+export interface KyxStore {
+  init(): Promise<void>;
+  close(): Promise<void>;
+  listAgents(): Promise<AgentRecord[]>;
+  searchAgents(opts: { q?: string; offset: number; limit: number }): Promise<AgentSearchResult>;
+  getAgent(did: string): Promise<AgentRecord | undefined>;
+  getAgentByPublicKey(publicKey: string): Promise<AgentRecord | undefined>;
+  getAgentByName(agentName: string): Promise<AgentRecord | undefined>;
+  getOperator(email: string): Promise<OperatorRecord | undefined>;
+  getOperatorByUsername(username: string): Promise<OperatorRecord | undefined>;
+  getOperatorByToken(token: string): Promise<OperatorRecord | undefined>;
+  upsertOperator(operator: OperatorRecord): Promise<void>;
+  addAgent(agent: AgentRecord): Promise<void>;
+  updateAgentOnChainStatus(did: string, status: AgentRecord['onChainStatus']): Promise<void>;
+  listSettlements(did?: string): Promise<SettlementRecord[]>;
+  addSettlement(settlement: SettlementRecord): Promise<void>;
+  getTrust(did: string): Promise<TrustRecord | undefined>;
+  putTrust(trust: TrustRecord): Promise<void>;
 }
 
 interface StoreData {
@@ -55,14 +94,12 @@ interface StoreData {
   trust: TrustRecord[];
 }
 
-const EMPTY: StoreData = { operators: [], agents: [], settlements: [], trust: [] };
-
-export class KyxStore {
-  private data: StoreData = EMPTY;
+export class FileKyxStore implements KyxStore {
+  private data: StoreData = { operators: [], agents: [], settlements: [], trust: [] };
 
   constructor(private readonly file: string) {}
 
-  async load(): Promise<void> {
+  async init(): Promise<void> {
     try {
       this.data = JSON.parse(await readFile(this.file, 'utf8')) as StoreData;
     } catch {
@@ -71,32 +108,58 @@ export class KyxStore {
     }
   }
 
-  async save(): Promise<void> {
+  async close(): Promise<void> {}
+
+  private async save(): Promise<void> {
     await mkdir(dirname(this.file), { recursive: true });
-    await writeFile(this.file, JSON.stringify(this.data, null, 2), 'utf8');
+    const tmp = `${this.file}.${randomUUID()}.tmp`;
+    await writeFile(tmp, JSON.stringify(this.data, null, 2), 'utf8');
+    await rename(tmp, this.file);
   }
 
-  listAgents(): AgentRecord[] {
+  async listAgents(): Promise<AgentRecord[]> {
     return [...this.data.agents].sort((a, b) => b.registeredAt.localeCompare(a.registeredAt));
   }
 
-  getAgent(did: string): AgentRecord | undefined {
+  async searchAgents(opts: { q?: string; offset: number; limit: number }): Promise<AgentSearchResult> {
+    const q = opts.q?.trim().toLowerCase();
+    const matches = (await this.listAgents()).filter((a) => !q || a.agentName.toLowerCase().includes(q));
+    return { agents: matches.slice(opts.offset, opts.offset + opts.limit), total: matches.length };
+  }
+
+  async getAgent(did: string): Promise<AgentRecord | undefined> {
     return this.data.agents.find((a) => a.did === did);
   }
 
-  getAgentByPublicKey(publicKey: string): AgentRecord | undefined {
+  async getAgentByPublicKey(publicKey: string): Promise<AgentRecord | undefined> {
     return this.data.agents.find((a) => a.publicKey.toLowerCase() === publicKey.toLowerCase());
   }
 
-  getOperator(email: string): OperatorRecord | undefined {
+  async getAgentByName(agentName: string): Promise<AgentRecord | undefined> {
+    return this.data.agents.find((a) => a.agentName.toLowerCase() === agentName.toLowerCase());
+  }
+
+  async getOperator(email: string): Promise<OperatorRecord | undefined> {
     return this.data.operators.find((o) => o.email.toLowerCase() === email.toLowerCase());
   }
 
-  getOperatorByToken(token: string): OperatorRecord | undefined {
+  async getOperatorByUsername(username: string): Promise<OperatorRecord | undefined> {
+    return this.data.operators.find((o) => o.username?.toLowerCase() === username.toLowerCase());
+  }
+
+  async getOperatorByToken(token: string): Promise<OperatorRecord | undefined> {
     return this.data.operators.find((o) => o.token === token);
   }
 
   async upsertOperator(operator: OperatorRecord): Promise<void> {
+    if (operator.username) {
+      const clash = this.data.operators.find(
+        (o) =>
+          o.username?.toLowerCase() === operator.username!.toLowerCase() &&
+          o.email.toLowerCase() !== operator.email.toLowerCase(),
+      );
+      if (clash) throw new DuplicateKeyError('username');
+    }
     const idx = this.data.operators.findIndex((o) => o.email.toLowerCase() === operator.email.toLowerCase());
     if (idx >= 0) this.data.operators[idx] = operator;
     else this.data.operators.push(operator);
@@ -104,11 +167,25 @@ export class KyxStore {
   }
 
   async addAgent(agent: AgentRecord): Promise<void> {
+    if (this.data.agents.some((a) => a.did === agent.did)) throw new DuplicateKeyError('did');
+    if (this.data.agents.some((a) => a.publicKey.toLowerCase() === agent.publicKey.toLowerCase())) {
+      throw new DuplicateKeyError('publicKey');
+    }
+    if (this.data.agents.some((a) => a.agentName.toLowerCase() === agent.agentName.toLowerCase())) {
+      throw new DuplicateKeyError('agentName');
+    }
     this.data.agents.push(agent);
     await this.save();
   }
 
-  listSettlements(did?: string): SettlementRecord[] {
+  async updateAgentOnChainStatus(did: string, status: AgentRecord['onChainStatus']): Promise<void> {
+    const agent = this.data.agents.find((a) => a.did === did);
+    if (!agent || agent.onChainStatus === status) return;
+    agent.onChainStatus = status;
+    await this.save();
+  }
+
+  async listSettlements(did?: string): Promise<SettlementRecord[]> {
     return this.data.settlements
       .filter((s) => !did || s.did === did)
       .sort((a, b) => b.settledAt.localeCompare(a.settledAt));
@@ -121,7 +198,7 @@ export class KyxStore {
     }
   }
 
-  getTrust(did: string): TrustRecord | undefined {
+  async getTrust(did: string): Promise<TrustRecord | undefined> {
     return this.data.trust.find((t) => t.did === did);
   }
 

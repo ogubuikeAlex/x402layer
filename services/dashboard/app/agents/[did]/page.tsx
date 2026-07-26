@@ -22,7 +22,7 @@ export default async function AgentDetailPage({ params }: { params: { did: strin
         <section className="space-y-6">
           <div className="border border-hairline bg-surface p-5">
             <dl className="grid gap-4 text-[11px] sm:grid-cols-2">
-              <Field label="operator" value={detail.agent.operatorEmail} />
+              <Field label="operator" value={`@${detail.agent.operatorUsername}`} />
               <Field label="network" value={detail.agent.network} />
               <Field label="wallet" value={detail.agent.walletAddress} />
               <Field label="registered" value={new Date(detail.agent.registeredAt).toLocaleString()} />

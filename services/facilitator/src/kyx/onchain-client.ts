@@ -1,4 +1,5 @@
 import type { AgentTrustSummary, TrustTier } from '@fourotwo/types';
+import { fetchWithTimeout } from '@fourotwo/types';
 
 import type { TrustClient } from './client.js';
 import {
@@ -21,7 +22,8 @@ export class OnChainTrustClient implements TrustClient {
   constructor(private readonly opts: OnChainTrustOptions) {}
 
   private get fetch(): typeof fetch {
-    return this.opts.fetchImpl ?? fetch;
+    const impl = this.opts.fetchImpl ?? fetch;
+    return ((input, init) => fetchWithTimeout(impl, input as string | URL | Request, init ?? {})) as typeof fetch;
   }
 
   async getTrustSummary(did: string): Promise<AgentTrustSummary | null> {
@@ -65,7 +67,14 @@ export class OnChainTrustClient implements TrustClient {
         completion_rate: score.completionRateBps / 10_000,
         flags: [],
       };
-    } catch {
+    } catch (err) {
+      // On-chain read failed (not a clean "absent"). Log it and defer to the
+      // off-chain fallback rather than silently reporting the agent as unknown.
+      console.warn(
+        `[onchain-trust] read failed for ${did}, falling back to off-chain: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
       return this.opts.fallback.getTrustSummary(did);
     }
   }
@@ -108,9 +117,13 @@ export class OnChainTrustClient implements TrustClient {
       const bytesHex = result.stored_value?.CLValue?.bytes;
       if (!bytesHex) return null;
       return unwrapStoredBytes(bytesHex);
-    } catch {
-      // "dictionary item not found" surfaces as an RPC error → treat as absent.
-      return null;
+    } catch (err) {
+      // A genuine "item not found" means the key is absent → null. Any other error
+      // (node down, malformed response) must propagate so it isn't silently
+      // mistaken for an unregistered/absent agent.
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/not found|valuenotfound|missing/i.test(msg)) return null;
+      throw err;
     }
   }
 }

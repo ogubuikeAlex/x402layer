@@ -2,14 +2,37 @@ import type { PaymentRequired } from '@fourotwo/types';
 
 import { BudgetExceededError } from './errors.js';
 
+const TOKEN_DECIMALS: Record<string, number> = {
+  CSPR: 9,
+  USDC: 6,
+};
+
+/** Decimals for a token symbol; defaults to 9 (Casper native) for unknown tokens. */
+export function tokenDecimals(token: string): number {
+  return TOKEN_DECIMALS[token.toUpperCase()] ?? 9;
+}
+
+export function amountToTokenUnits(payment: PaymentRequired): number {
+  const raw = String(payment.amount);
+  if (!/^\d+$/.test(raw)) {
+    throw new Error(`Payment amount "${payment.amount}" is not a non-negative integer`);
+  }
+  const decimals = tokenDecimals(payment.token);
+  const base = 10n ** BigInt(decimals);
+  const value = BigInt(raw);
+  const whole = Number(value / base);
+  const frac = Number(value % base) / Number(base);
+  return whole + frac;
+}
+
 export interface SpendBudget {
-  dailyUsd?: number;
-  perRequestUsd?: number;
-  amountToUsd?: (payment: PaymentRequired) => number;
+  dailyTokens?: number;
+  perRequestTokens?: number;
+  amountToTokens?: (payment: PaymentRequired) => number;
 }
 
 export class BudgetTracker {
-  private spentTodayUsd = 0;
+  private spentTodayTokens = 0;
   private day: string;
 
   constructor(
@@ -21,31 +44,35 @@ export class BudgetTracker {
 
   check(payment: PaymentRequired): number {
     this.resetIfNeeded();
-    const amountUsd = this.budget.amountToUsd?.(payment) ?? Number(payment.amount) / 1_000_000;
-    if (this.budget.perRequestUsd !== undefined && amountUsd > this.budget.perRequestUsd) {
-      throw new BudgetExceededError(amountUsd, this.budget.perRequestUsd, 'per-request');
+    const amountTokens = this.budget.amountToTokens?.(payment) ?? amountToTokenUnits(payment);
+    if (this.budget.perRequestTokens !== undefined && amountTokens > this.budget.perRequestTokens) {
+      throw new BudgetExceededError(amountTokens, this.budget.perRequestTokens, 'per-request');
     }
-    if (this.budget.dailyUsd !== undefined && this.spentTodayUsd + amountUsd > this.budget.dailyUsd) {
-      throw new BudgetExceededError(amountUsd, this.budget.dailyUsd, 'daily');
+    if (
+      this.budget.dailyTokens !== undefined &&
+      this.spentTodayTokens + amountTokens > this.budget.dailyTokens
+    ) {
+      throw new BudgetExceededError(amountTokens, this.budget.dailyTokens, 'daily');
     }
-    return amountUsd;
+    return amountTokens;
   }
 
-  commit(amountUsd: number): void {
+  commit(amountTokens: number): void {
+    if (!Number.isFinite(amountTokens)) return;
     this.resetIfNeeded();
-    this.spentTodayUsd += amountUsd;
+    this.spentTodayTokens += amountTokens;
   }
 
-  snapshot(): { spentTodayUsd: number; utcDay: string } {
+  snapshot(): { spentTodayTokens: number; utcDay: string } {
     this.resetIfNeeded();
-    return { spentTodayUsd: this.spentTodayUsd, utcDay: this.day };
+    return { spentTodayTokens: this.spentTodayTokens, utcDay: this.day };
   }
 
   private resetIfNeeded(): void {
     const current = this.utcDay();
     if (current !== this.day) {
       this.day = current;
-      this.spentTodayUsd = 0;
+      this.spentTodayTokens = 0;
     }
   }
 

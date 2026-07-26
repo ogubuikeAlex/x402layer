@@ -21,12 +21,23 @@ function receiptMessage(r: Omit<SettlementReceipt, 'facilitatorSignature'>): Uin
   return new TextEncoder().encode(canonical);
 }
 
-/** If no signing key is configured, an ephemeral key is generated (acceptable for local dev only). */
 export class ReceiptSigner {
   private readonly secret: Uint8Array;
   readonly publicKeyHex: string;
 
   constructor(secretKeyHex?: string) {
+    if (!secretKeyHex) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+          'FACILITATOR_RECEIPT_SIGNING_KEY is required in production: an ephemeral key would ' +
+            'rotate on every restart and invalidate all previously issued receipts.',
+        );
+      }
+      console.warn(
+        '[receipts] FACILITATOR_RECEIPT_SIGNING_KEY not set - using an ephemeral key. Receipts ' +
+          'will not verify after a restart. Do NOT run this way in production.',
+      );
+    }
     this.secret = secretKeyHex ? hexToBytes(secretKeyHex.replace(/^0x/, '')) : randomBytes(32);
     this.publicKeyHex = bytesToHex(ed25519.getPublicKey(this.secret));
   }

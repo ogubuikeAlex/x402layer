@@ -1,17 +1,24 @@
 import type { ChainNetwork } from '@fourotwo/types';
 
 import type { KyxConfig } from '../config.js';
-import type { TrustRecord } from '../store.js';
+import { metrics } from '../metrics.js';
+import type { KyxStore, TrustRecord } from '../store.js';
 import { CasperRegistryRecorder } from './casper-registry-recorder.js';
 
 export type OnChainStatus = 'recorded' | 'unconfigured' | 'failed';
 
-/**
- * Build the live registry recorder when both the deployed contract hash and a
- * service key are configured; otherwise return null so callers fall back to the
- * log-only path. The on-chain KyxRegistry is a Casper contract, so only Casper
- * agents are synced.
- */
+const ONCHAIN_REGISTER_TIMEOUT_MS = 20_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+      timer.unref?.();
+    }),
+  ]);
+}
+
 function buildRecorder(config: KyxConfig): CasperRegistryRecorder | null {
   const key = config.casper.secretKey ?? config.casper.secretKeyPath;
   if (!config.kyxRegistryContractHash || !key) return null;
@@ -42,13 +49,58 @@ export async function syncAgentRegistration(args: {
   const recorder = buildRecorder(args.config);
   if (!recorder) return 'unconfigured';
 
-  const result = await recorder.registerAgent({
-    did: args.did,
-    operatorAccountHash: args.walletAddress,
-    agentName: args.agentName,
-    publicKey: args.publicKey,
-  });
+
+  let result: { recorded: boolean };
+  try {
+    result = await withTimeout(
+      recorder.registerAgent({
+        did: args.did,
+        operatorAccountHash: args.walletAddress,
+        agentName: args.agentName,
+        publicKey: args.publicKey,
+      }),
+      ONCHAIN_REGISTER_TIMEOUT_MS,
+      'register_agent',
+    );
+  } catch (err) {
+    console.warn(
+      `[kyx-chain] register_agent failed for ${args.did}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    metrics.inc('onchain_writes_total', { entry_point: 'register_agent', recorded: 'false' });
+    return 'failed';
+  }
+  metrics.inc('onchain_writes_total', { entry_point: 'register_agent', recorded: String(result.recorded) });
   return result.recorded ? 'recorded' : 'failed';
+}
+
+export async function backfillOnChainRegistrations(
+  store: KyxStore,
+  config: KyxConfig,
+  log: { info: (msg: string) => void; warn: (msg: string) => void },
+): Promise<void> {
+  const recorder = buildRecorder(config);
+  if (!recorder) return;
+  const pending = (await store.listAgents()).filter(
+    (a) => a.network === 'casper' && a.onChainStatus !== 'recorded',
+  );
+  if (pending.length === 0) return;
+  log.info(`on-chain backfill: syncing ${pending.length} agent(s)`);
+  for (const agent of pending) {
+    try {
+      const result = await recorder.registerAgent({
+        did: agent.did,
+        operatorAccountHash: agent.walletAddress,
+        agentName: agent.agentName,
+        publicKey: agent.publicKey,
+      });
+      const status = result.recorded ? 'recorded' : 'failed';
+      await store.updateAgentOnChainStatus(agent.did, status);
+      log.info(`on-chain backfill: ${agent.did} → ${status}`);
+    } catch (err) {
+      await store.updateAgentOnChainStatus(agent.did, 'failed');
+      log.warn(`on-chain backfill: ${agent.did} failed - ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
 }
 
 export async function syncTrustScore(trust: TrustRecord, config: KyxConfig): Promise<void> {

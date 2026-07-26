@@ -24,9 +24,26 @@ interface TraceStep {
   ok: boolean;
 }
 
+// This route reconstructs a well-known keypair and drives a real verify+settle.
+// It must never be reachable in production, where it would be an anonymous,
+// unbounded, real-value settlement endpoint. Enable explicitly for local demos.
+const DEMO_ENABLED =
+  process.env.DEMO_ROUTE_ENABLED === 'true' || process.env.NODE_ENV !== 'production';
+
+// Upper bound on the demo amount (motes) so the endpoint can't be scripted to
+// push arbitrarily large settlements.
+const MAX_DEMO_AMOUNT_MOTES = 10_000_000_000n; // 10 CSPR
+
 export async function POST(req: Request) {
+  if (!DEMO_ENABLED) {
+    return NextResponse.json({ error: 'DEMO_DISABLED' }, { status: 404 });
+  }
   const body = (await req.json().catch(() => ({}))) as { amount?: string };
-  const amount = body.amount && /^\d+$/.test(body.amount) ? body.amount : '5000';
+  let amount = '5000';
+  if (body.amount && /^\d+$/.test(body.amount)) {
+    const requested = BigInt(body.amount);
+    if (requested > 0n && requested <= MAX_DEMO_AMOUNT_MOTES) amount = body.amount;
+  }
 
   // Deterministic demo agent keypair (matches the facilitator craft script).
   const secret = new Uint8Array(32).fill(7);

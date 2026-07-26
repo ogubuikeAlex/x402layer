@@ -1,3 +1,5 @@
+import { fetchWithTimeout, DEFAULT_FETCH_TIMEOUT_MS } from '@fourotwo/types';
+
 import { BudgetTracker, type SpendBudget } from './budget.js';
 import { keypairFromPrivateKey, type AgentKeypair } from './did.js';
 import { BudgetExceededError } from './errors.js';
@@ -5,6 +7,7 @@ import { TransactionLedger, ledgerEntryForPayment, type LedgerEntry } from './le
 import { readPaymentRequiredHeader, signPayment } from './payment.js';
 
 export * from './budget.js';
+export * from './casper-x402.js';
 export * from './did.js';
 export * from './errors.js';
 export * from './ledger.js';
@@ -17,6 +20,7 @@ export interface FourotwoAgentOptions {
   budget?: SpendBudget;
   logFilePath?: string;
   fetchImpl?: typeof fetch;
+  timeoutMs?: number;
 }
 
 export class fourotwoAgent {
@@ -25,6 +29,7 @@ export class fourotwoAgent {
   private readonly budget: BudgetTracker;
   private readonly ledger: TransactionLedger;
   private readonly fetchImpl: typeof fetch;
+  private readonly timeoutMs: number;
 
   constructor(options: FourotwoAgentOptions) {
     this.keypair = keypairFromPrivateKey(options.privateKeyHex);
@@ -32,16 +37,24 @@ export class fourotwoAgent {
     this.budget = new BudgetTracker(options.budget);
     this.ledger = new TransactionLedger(options.logFilePath);
     this.fetchImpl = options.fetchImpl ?? fetch;
+    this.timeoutMs = options.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+  }
+
+  private request(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+    return fetchWithTimeout(this.fetchImpl, input as string | URL | Request, {
+      ...init,
+      timeoutMs: this.timeoutMs,
+    });
   }
 
   async fetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
-    const first = await this.fetchImpl(input, init);
+    const first = await this.request(input, init);
     if (first.status !== 402) return first;
 
     const paymentRequired = readPaymentRequiredHeader(first.headers);
-    let amountUsd = 0;
+    let amountTokens = 0;
     try {
-      amountUsd = this.budget.check(paymentRequired);
+      amountTokens = this.budget.check(paymentRequired);
       const signed = signPayment({
         paymentRequired,
         privateKeyHex: this.keypair.privateKeyHex,
@@ -52,9 +65,9 @@ export class fourotwoAgent {
       headers.set('PAYMENT-SIGNATURE', signed.paymentSignature);
       headers.set('X-FOUROTWO-DID', this.did);
 
-      const retry = await this.fetchImpl(input, { ...init, headers });
+      const retry = await this.request(input, { ...init, headers });
       const status = retry.ok ? 'success' : 'failed';
-      if (retry.ok) this.budget.commit(amountUsd);
+      if (retry.ok) this.budget.commit(amountTokens);
       await this.ledger.append(
         ledgerEntryForPayment({
           did: this.did,
