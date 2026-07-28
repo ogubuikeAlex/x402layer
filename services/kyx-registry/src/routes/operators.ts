@@ -115,9 +115,18 @@ export function registerOperatorRoutes(
     const verificationUrl = `${config.publicUrl}/operators/verify/${token}`;
 
     
-    if (config.devTokenEmails.includes(email.toLowerCase())) {
-      app.log.info({ email, verificationUrl }, 'operator verification magic link (dev allowlist)');
-      return { ok: true, verification_url: verificationUrl, dev_token: token, username };
+    if (config.demoOpenVerification || config.devTokenEmails.includes(email.toLowerCase())) {
+      app.log.info(
+        { email, verificationUrl, mode: config.demoOpenVerification ? 'demo-open' : 'dev-allowlist' },
+        'operator verification magic link returned inline',
+      );
+      return {
+        ok: true,
+        verification_url: verificationUrl,
+        dev_token: token,
+        username,
+        demo_open_verification: config.demoOpenVerification || undefined,
+      };
     }
     
     if (!mailer) {
