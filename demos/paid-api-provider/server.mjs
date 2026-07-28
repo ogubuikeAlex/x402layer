@@ -100,6 +100,18 @@ function json(res, status, body, extraHeaders = {}) {
   res.end(JSON.stringify(body, null, 2));
 }
 
+async function readBody(req) {
+  const chunks = [];
+  for await (const c of req) chunks.push(c);
+  if (!chunks.length) return {};
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch (err) {
+    console.warn(`[request] invalid JSON body: ${err?.message ?? err}`);
+    return {};
+  }
+}
+
 function paymentTerms(asset) {
   return {
     amount: asset.priceMotes,
@@ -145,7 +157,8 @@ async function serveStatic(res, pathname) {
     cors(res);
     res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream' });
     res.end(body);
-  } catch {
+  } catch (err) {
+    console.warn(`[static] ${pathname} not served: ${err?.message ?? err}`);
     json(res, 404, { error: 'NOT_FOUND', path: pathname });
   }
 }
@@ -190,6 +203,20 @@ const server = createServer(async (req, res) => {
   }
 
   // ── Paid endpoint: GET /api/assets/:id ────────────────────────────
+  if (req.method === 'POST' && pathname === '/api/settlement-transfer') {
+    const body = await readBody(req);
+    const settlementId = String(body.settlement_id ?? '').trim();
+    const transferTx = String(body.transfer_tx ?? '').trim();
+    if (!settlementId || !transferTx) {
+      return json(res, 400, { error: 'MISSING_FIELDS', detail: 'settlement_id and transfer_tx are required' });
+    }
+    const record = earnings.find((e) => e.settlementId === settlementId);
+    if (!record) return json(res, 404, { error: 'SETTLEMENT_NOT_FOUND', settlement_id: settlementId });
+    record.transferTx = transferTx;
+    record.explorerUrl = `${EXPLORER}/deploy/${transferTx}`;
+    return json(res, 200, { ok: true, settlement: record });
+  }
+
   const assetMatch = pathname.match(/^\/api\/assets\/([^/]+)$/);
   if (req.method === 'GET' && assetMatch) {
     const asset = CATALOG.find((a) => a.id === decodeURIComponent(assetMatch[1]));
@@ -245,7 +272,8 @@ const server = createServer(async (req, res) => {
     let data;
     try {
       data = JSON.parse(await readFile(join(__dirname, 'data', `${asset.id}.json`), 'utf8'));
-    } catch {
+    } catch (err) {
+      console.warn(`[data] using fallback dataset for ${asset.id}: ${err?.message ?? err}`);
       data = { id: asset.id, name: asset.name, note: 'sample dataset' };
     }
     return json(res, 200, { asset: asset.id, data, settlement: record, receipt });
