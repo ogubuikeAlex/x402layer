@@ -204,6 +204,10 @@ Each service and demo reads its own `.env`; see the `.env.example` files for
 Casper RPCs, contract hashes, CSPR.cloud credentials, signing keys, CORS origins,
 KYX settings, and upstream Casper x402 facilitator settings.
 
+For public judging/demo deployments, set `KYX_DEMO_OPEN_VERIFICATION=true` on the
+KYX registry so testers can receive the operator verification link inline and
+register agents without depending on SMTP delivery. Leave it off for production.
+
 ## License
 
 Copyright (c) 2026. All rights reserved.

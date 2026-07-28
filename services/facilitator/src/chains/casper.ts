@@ -2,7 +2,7 @@ import { sha512 } from '@noble/hashes/sha2';
 import * as ed25519 from '@noble/ed25519';
 import { hexToBytes } from '@noble/hashes/utils';
 import type { PaymentPayload } from '@fourotwo/types';
-import { canonicalPaymentBytes, fetchWithTimeout } from '@fourotwo/types';
+import { canonicalPaymentBytes, deriveAddress, fetchWithTimeout } from '@fourotwo/types';
 
 import type { ChainAdapter, SettlementResult, TxStatus } from './types.js';
 import { decodeSignature, isHex } from './signature-util.js';
@@ -58,9 +58,12 @@ export class CasperAdapter implements ChainAdapter {
   }
 
   async checkBalance(address: string, amount: bigint): Promise<boolean> {
-    const accountHash = address.startsWith('account-hash-')
+    const bareAddress = address.startsWith('account-hash-')
       ? address.slice('account-hash-'.length)
       : address;
+    const accountHash = /^[0-9a-fA-F]{64}$/.test(bareAddress)
+      ? bareAddress
+      : deriveAddress('casper', bareAddress);
     const balance = await this.client.getBalanceMotes(accountHash);
     return balance >= amount;
   }

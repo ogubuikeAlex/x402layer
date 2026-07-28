@@ -17,7 +17,7 @@ import { dirname, extname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { decodeEnvelope, deriveAddress } from '../../packages/types/dist/index.js';
-import { keypairFromPrivateKey, generateCasperKeypair, signPayment } from '../../packages/agent-sdk/dist/index.js';
+import { keypairFromPrivateKey, signPayment } from '../../packages/agent-sdk/dist/index.js';
 import { broadcastCsprTransfer } from './casper-transfer.mjs';
 import { registerWithKyx } from './register.mjs';
 import { createMetrics, instrumentRequest } from '../shared/metrics.mjs';
@@ -63,6 +63,12 @@ const EXPLORER = process.env.CASPER_EXPLORER_URL ?? 'https://testnet.cspr.live';
 const KYX_REGISTRY_URL = process.env.KYX_REGISTRY_URL ?? 'https://x402layer-kyx-registry.onrender.com';
 const AGENT_OPERATOR_EMAIL = process.env.AGENT_OPERATOR_EMAIL ?? 'atlas-demo@fourotwo.dev';
 const AGENT_NAME = process.env.AGENT_NAME ?? 'Atlas Research Agent';
+
+const REGISTERED_AGENT = {
+  did: 'did:fourotwo:casper:98f6c265c4f2a438070c7152a7cc85773e4843e574c086a7918bfdf62adb39b7',
+  privateKeyHex: '8de06e6fbb45c5f19a23f9b4929083bed5a4bdc5167a35ac0d406172dce4aeb6',
+  publicKeyHex: '0170f19f29db5f35d05012828a2017f259763bce4d13629656a57c2494f7a70593',
+};
 
 const isHexSeed = (s) => /^[0-9a-fA-F]+$/.test(s) && s.length % 2 === 0;
 
@@ -124,11 +130,15 @@ function resolveAgentSeedHex() {
   return null;
 }
 
-// The agent wallet. Supply a FUNDED casper-test **ed25519** key (see above).
-// Without one, we generate an ephemeral, unfunded key so the flow still runs.
-let keypair;
-let FUNDED = false;
-let KEY_SOURCE = 'ephemeral';
+// The agent wallet is pinned to a KYX-registered demo agent so every restart
+// presents the same DID/public key to the facilitator.
+const keypair = keypairFromPrivateKey(REGISTERED_AGENT.privateKeyHex);
+if (keypair.did !== REGISTERED_AGENT.did || keypair.taggedPublicKeyHex !== REGISTERED_AGENT.publicKeyHex) {
+  throw new Error('Hardcoded registered agent key does not match the configured DID/public key');
+}
+const FUNDED = true;
+const KEY_SOURCE = 'hardcoded registered agent';
+/*
 try {
   const seed = resolveAgentSeedHex();
   if (seed) {
@@ -145,6 +155,7 @@ try {
   keypair = generateCasperKeypair();
   KEY_SOURCE = 'ephemeral (key load failed)';
 }
+*/
 const ACCOUNT_HASH = deriveAddress('casper', keypair.taggedPublicKeyHex);
 
 const MIME = {
@@ -241,6 +252,7 @@ const server = createServer(async (req, res) => {
       did: keypair.did,
       accountHash: ACCOUNT_HASH,
       publicKeyHex: keypair.taggedPublicKeyHex,
+      keySource: KEY_SOURCE,
       balanceMotes: motes,
       funded: FUNDED,
       merchantUrl: MERCHANT_URL,
