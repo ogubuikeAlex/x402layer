@@ -17,7 +17,7 @@ import { dirname, extname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { decodeEnvelope, deriveAddress } from '../../packages/types/dist/index.js';
-import { keypairFromPrivateKey, generateCasperKeypair, signPayment } from '../../packages/agent-sdk/dist/index.js';
+import { keypairFromPrivateKey, signPayment } from '../../packages/agent-sdk/dist/index.js';
 import { broadcastCsprTransfer } from './casper-transfer.mjs';
 import { registerWithKyx } from './register.mjs';
 import { createMetrics, instrumentRequest } from '../shared/metrics.mjs';
@@ -206,11 +206,26 @@ async function balanceMotes() {
   for (const attempt of attempts) {
     try {
       return await attempt();
-    } catch {
-      /* try the next source */
+    } catch (err) {
+      console.warn(`[wallet] balance source failed: ${err?.message ?? err}`);
     }
   }
   return null;
+}
+
+async function reportTransferToMerchant(targetUrl, settlementId, transferTx) {
+  if (!settlementId || !transferTx) return;
+  try {
+    const url = new URL('/api/settlement-transfer', targetUrl);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ settlement_id: settlementId, transfer_tx: transferTx }),
+    });
+    if (!res.ok) console.warn(`[merchant] transfer sync failed: ${res.status}`);
+  } catch (err) {
+    console.warn(`[merchant] transfer sync failed: ${err?.message ?? err}`);
+  }
 }
 
 async function serveStatic(res, pathname) {
@@ -241,6 +256,7 @@ const server = createServer(async (req, res) => {
       did: keypair.did,
       accountHash: ACCOUNT_HASH,
       publicKeyHex: keypair.taggedPublicKeyHex,
+      keySource: KEY_SOURCE,
       balanceMotes: motes,
       funded: FUNDED,
       merchantUrl: MERCHANT_URL,
@@ -346,6 +362,16 @@ const server = createServer(async (req, res) => {
       result: transfer.txHash ? 'broadcast' : transfer.skipped ? 'skipped' : 'error',
     });
 
+    const settlementId = paidBody.settlement?.settlementId ?? paidBody.receipt?.settlementId;
+    if (transfer.txHash) await reportTransferToMerchant(targetUrl, settlementId, transfer.txHash);
+    const settlement = paidBody.settlement
+      ? {
+          ...paidBody.settlement,
+          transferTx: transfer.txHash ?? paidBody.settlement.transferTx ?? null,
+          explorerUrl: transfer.txHash ? `${EXPLORER}/deploy/${transfer.txHash}` : paidBody.settlement.explorerUrl ?? null,
+        }
+      : null;
+
     const after = await balanceMotes(); // live re-read (may lag settlement finality)
     const deduct = BigInt(terms.amount);
     const projectedAfter = before === null ? null : (BigInt(before) - deduct).toString();
@@ -353,7 +379,7 @@ const server = createServer(async (req, res) => {
       ok: true,
       did: keypair.did,
       data: paidBody.data ?? paidBody,
-      settlement: paidBody.settlement ?? null,
+      settlement,
       receipt: paidBody.receipt ?? null,
       amountMotes: terms.amount,
       recipient: terms.recipient,

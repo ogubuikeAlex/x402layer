@@ -15,6 +15,16 @@ const esc = (s) =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
   );
 
+function paymentErrorSummary(body) {
+  const detail = body?.detail;
+  const verify = detail?.verify;
+  const settle = detail?.settle;
+  if (verify?.reason) return `${verify.reason}: ${verify.detail ?? 'verification failed'}`;
+  if (settle?.error) return `${settle.error}: ${settle.detail ?? 'settlement failed'}`;
+  if (detail?.stage) return `${detail.stage} failed`;
+  return body?.error ?? 'payment failed';
+}
+
 let MERCHANT_URL = '';
 let wallet = null;
 // Autonomous mode: pay 402s without asking. Server env sets the default
@@ -38,9 +48,10 @@ window.fetch = async (input, init) => {
     : await requestPaymentApproval({ targetUrl, paymentRequired });
   if (!paid) return res; // cancelled / failed → hand back the original 402
 
-  // Hand the caller a normal 200 carrying the now-paid data.
+  // Hand the caller the payment attempt result. Failed payments keep their 402
+  // status so the page can render the real facilitator/merchant rejection.
   return new Response(JSON.stringify(paid), {
-    status: 200,
+    status: paid.ok === false ? paid.status ?? 402 : 200,
     headers: { 'content-type': 'application/json' },
   });
 };
@@ -63,8 +74,8 @@ async function executeAutonomously({ targetUrl, paymentRequired }) {
     }).then((r) => r.json());
 
     if (!result.ok) {
-      showToast(`auto-payment failed: ${result.error ?? 'unknown error'}`, 'fail');
-      return null;
+      showToast(`auto-payment failed: ${paymentErrorSummary(result)}`, 'fail');
+      return result;
     }
     if (result.liveAfterMotes != null) setWalletBalance(result.liveAfterMotes);
     else if (result.projectedAfterMotes != null) setWalletBalance(result.projectedAfterMotes);
@@ -150,7 +161,7 @@ function requestPaymentApproval({ targetUrl, paymentRequired }) {
         }).then((r) => r.json());
 
         if (!result.ok) {
-          statusEl.textContent = `Payment failed: ${result.error ?? 'unknown error'}`;
+          statusEl.textContent = `Payment failed: ${paymentErrorSummary(result)}`;
           setLoading(false);
           return;
         }
@@ -280,7 +291,7 @@ async function fetchAsset(id) {
     const body = await res.json();
 
     if (!res.ok) {
-      meta.innerHTML = `<span class="r-fail">Payment cancelled - ${id} not retrieved.</span>`;
+      meta.innerHTML = `<span class="r-fail">Payment rejected - ${esc(paymentErrorSummary(body))}</span>`;
       out.textContent = JSON.stringify(body, null, 2);
       return;
     }

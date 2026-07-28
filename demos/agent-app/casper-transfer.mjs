@@ -66,23 +66,23 @@ export async function broadcastCsprTransfer({
   }
 
   const signer = sdk.PrivateKey.fromHex(seedHex, sdk.KeyAlgorithm.ED25519);
-  const deploy = sdk.makeCsprTransferDeploy({
-    senderPublicKeyHex: signer.publicKey.toHex(),
-    recipientPublicKeyHex,
-    transferAmount: String(amountMotes),
-    chainName,
-    memo: String(memoToTransferId(memo)),
-    ttl: DEFAULT_TTL_MS,
-    gasPrice: 1,
-    paymentAmount: String(paymentMotes),
-  });
-  deploy.sign(signer);
-
-  const result = await tryEndpoints(nodeRpcs, (nodeRpc) => {
+  const result = await tryEndpoints(nodeRpcs, async (nodeRpc) => {
     const rpc = new sdk.RpcClient(new sdk.HttpHandler(nodeRpc));
-    return rpc.putDeploy(deploy);
+    const status = await rpc.getStatus();
+    const transaction = sdk.makeCsprTransferTransaction({
+      senderPublicKeyHex: signer.publicKey.toHex(),
+      recipientPublicKeyHex,
+      transferAmount: String(amountMotes),
+      chainName,
+      memo: String(memoToTransferId(memo)),
+      ttl: DEFAULT_TTL_MS,
+      gasPrice: 1,
+      paymentAmount: String(paymentMotes),
+      casperNetworkApiVersion: status.apiVersion ?? status.api_version,
+    });
+    transaction.sign(signer);
+    return rpc.putTransaction(transaction);
   });
-  const txHash = result.deployHash?.toHex?.() ?? String(result.deployHash);
+  const txHash = result.transactionHash?.toHex?.() ?? String(result.transactionHash);
   return { txHash };
 }
-

@@ -2,7 +2,7 @@ import { sha512 } from '@noble/hashes/sha2';
 import * as ed25519 from '@noble/ed25519';
 import { hexToBytes } from '@noble/hashes/utils';
 import type { PaymentPayload } from '@fourotwo/types';
-import { canonicalPaymentBytes, fetchWithTimeout } from '@fourotwo/types';
+import { canonicalPaymentBytes, deriveAddress, fetchWithTimeout } from '@fourotwo/types';
 
 import type { ChainAdapter, SettlementResult, TxStatus } from './types.js';
 import { decodeSignature, isHex } from './signature-util.js';
@@ -42,7 +42,7 @@ function rawCasperPublicKey(pubHex: string): Uint8Array {
 export class CasperAdapter implements ChainAdapter {
   readonly network = 'casper' as const;
 
-  constructor(private readonly client: CasperRpcClient) {}
+  constructor(private readonly client: CasperRpcClient) { }
 
   async verifySignature(payload: PaymentPayload): Promise<boolean> {
     try {
@@ -58,9 +58,12 @@ export class CasperAdapter implements ChainAdapter {
   }
 
   async checkBalance(address: string, amount: bigint): Promise<boolean> {
-    const accountHash = address.startsWith('account-hash-')
+    const bareAddress = address.startsWith('account-hash-')
       ? address.slice('account-hash-'.length)
       : address;
+    const accountHash = /^[0-9a-fA-F]{64}$/.test(bareAddress)
+      ? bareAddress
+      : deriveAddress('casper', bareAddress);
     const balance = await this.client.getBalanceMotes(accountHash);
     return balance >= amount;
   }
@@ -94,7 +97,7 @@ export class CsprCloudCasperClient implements CasperRpcClient {
       nodeRpcs?: string[];
       fetchImpl?: typeof fetch;
     },
-  ) {}
+  ) { }
 
   private get fetch(): typeof fetch {
     const impl = this.opts.fetchImpl ?? fetch;
@@ -108,7 +111,7 @@ export class CsprCloudCasperClient implements CasperRpcClient {
       : [this.opts.nodeRpc];
   }
 
-  async getBalanceMotes(accountHashHex: string): Promise<bigint> {
+  private async getBalanceFromCsprCloud(accountHashHex: string): Promise<bigint> {
     const url = `${this.opts.csprCloudApiUrl}/accounts/${accountHashHex}`;
     const headers: Record<string, string> = { accept: 'application/json' };
     if (this.opts.csprCloudApiKey) headers.authorization = this.opts.csprCloudApiKey;
@@ -118,11 +121,42 @@ export class CsprCloudCasperClient implements CasperRpcClient {
     return BigInt(body.data?.balance ?? '0');
   }
 
+  private async getBalanceFromRpc(accountHashHex: string): Promise<bigint> {
+    return tryEndpoints(this.nodeRpcs, async (nodeRpc) => {
+      const res = await this.fetch(nodeRpc, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'query_balance',
+          params: { purse_identifier: { main_purse_under_account_hash: `account-hash-${accountHashHex}` } },
+        }),
+      });
+      if (!res.ok) throw new Error(`query_balance HTTP ${res.status}`);
+      const body = (await res.json()) as { result?: { balance?: string }; error?: { message?: string } };
+      if (body.error) throw new Error(body.error.message ?? 'query_balance failed');
+      if (body.result?.balance === undefined) throw new Error('query_balance returned no balance');
+      return BigInt(body.result.balance);
+    });
+  }
+
+  async getBalanceMotes(accountHashHex: string): Promise<bigint> {
+    if (this.opts.csprCloudApiKey) {
+      try {
+        return await this.getBalanceFromCsprCloud(accountHashHex);
+      } catch (err) {
+        console.warn(`[casper] CSPR.cloud balance lookup failed; falling back to RPC: ${(err as Error).message}`);
+      }
+    }
+    return this.getBalanceFromRpc(accountHashHex);
+  }
+
   async broadcastTransfer(): Promise<{ deployHash: string }> {
     throw new SettlementUnconfiguredError(
       'Casper live settlement is not wired in this environment. Configure the ' +
-        'facilitator service key + casper-js-sdk broadcaster to enable real ' +
-        'on-chain settlement.',
+      'facilitator service key + casper-js-sdk broadcaster to enable real ' +
+      'on-chain settlement.',
     );
   }
 

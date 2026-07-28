@@ -51,6 +51,8 @@ export async function runSettle(ctx: AppContext, req: SettleRequest): Promise<Se
   }
   let txHash: string | undefined;
   let state: 'pending' | 'confirmed' = 'pending';
+  let warning: string | undefined;
+  let liveSettlementUnconfigured = false;
   if (ctx.upstreamFacilitator) {
     try {
       const result = await ctx.upstreamFacilitator.settle(payload);
@@ -74,30 +76,28 @@ export async function runSettle(ctx: AppContext, req: SettleRequest): Promise<Se
       txHash = result.txHash;
       state = result.state === 'confirmed' ? 'confirmed' : 'pending';
     } catch (err) {
-      await ctx.verifications.unclaim(req.verification_id);
       if (err instanceof SettlementUnconfiguredError) {
-        return {
-          status: 503,
-          body: {
-            error: 'SETTLEMENT_UNCONFIGURED',
-            detail: 'Live settlement is not configured; no funds moved and no fee was charged.',
-          },
-        };
+        liveSettlementUnconfigured = true;
+        warning = 'live_settlement_unconfigured: no funds moved and no fee was charged';
+      } else {
+        await ctx.verifications.unclaim(req.verification_id);
+        return { status: 502, body: { error: 'SETTLEMENT_FAILED', detail: (err as Error).message } };
       }
-      return { status: 502, body: { error: 'SETTLEMENT_FAILED', detail: (err as Error).message } };
     }
   }
 
   const sid = settlementId();
   const scoreAtSettlement = trustScore ?? 0;
 
-  const feeMotes = await ctx.feeLedger.charge({
-    settlementId: sid,
-    did: payload.agentDid,
-    merchant: payload.paymentRequired.recipient,
-    amountMotes: payload.paymentRequired.amount,
-    mode: 'direct',
-  });
+  const feeMotes = liveSettlementUnconfigured
+    ? '0'
+    : await ctx.feeLedger.charge({
+        settlementId: sid,
+        did: payload.agentDid,
+        merchant: payload.paymentRequired.recipient,
+        amountMotes: payload.paymentRequired.amount,
+        mode: 'direct',
+      });
 
   const vault = await ctx.vaultRecorder.record({
     did: payload.agentDid,
@@ -145,6 +145,7 @@ export async function runSettle(ctx: AppContext, req: SettleRequest): Promise<Se
       receipt,
       vault_recorded: vault.recorded,
       fee_motes: feeMotes,
+      ...(warning ? { warning } : {}),
       ...(vault.recorded && vault.detail ? { vault_tx: vault.detail } : {}),
     },
   };

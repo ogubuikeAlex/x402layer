@@ -8,6 +8,7 @@ import {
   type VerifySuccess,
   canonicalPaymentBytes,
   base64Encode,
+  deriveAddress,
   deriveDid,
   encodeEnvelope,
 } from '@fourotwo/types';
@@ -119,6 +120,28 @@ describe('verify → settle round trip', () => {
     const poor = buildTestContext(mockCasperClient(1n));
     const out = await runVerify(poor, signedRequest(makeEnvelope({ amount: '5000' })));
     expect(out.body).toMatchObject({ valid: false, reason: 'INSUFFICIENT_BALANCE' });
+  });
+
+  it('checks Casper balance against the derived account hash, not the public key', async () => {
+    let queriedAccountHash = '';
+    const ctxWithRecorder = buildTestContext({
+      async getBalanceMotes(accountHash) {
+        queriedAccountHash = accountHash;
+        return 10_000_000_000n;
+      },
+      async broadcastTransfer() {
+        return { deployHash: 'deploy-hash-test-0001' };
+      },
+      async getDeployStatus(deployHash) {
+        return { txHash: deployHash, state: 'confirmed' };
+      },
+    });
+
+    const out = await runVerify(ctxWithRecorder, signedRequest(makeEnvelope()));
+
+    expect(out.status).toBe(200);
+    expect(queriedAccountHash).toBe(deriveAddress('casper', TAGGED_PUB));
+    expect(queriedAccountHash).not.toBe(TAGGED_PUB);
   });
 
   it('settles a verified payment and returns a signed receipt', async () => {

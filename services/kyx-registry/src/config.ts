@@ -36,7 +36,7 @@ function parseList(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
-function toBool(value: string | undefined, fallback = false): boolean {
+function bool(value: string | undefined, fallback = false): boolean {
   if (value === undefined || value.trim() === '') return fallback;
   return ['true', '1', 'yes', 'on'].includes(value.trim().toLowerCase());
 }
@@ -101,7 +101,7 @@ export function loadConfig(): KyxConfig {
       from: process.env.MAIL_FROM || process.env.SMTP_USER || 'fourotwo KYX <no-reply@fourotwo.dev>',
     },
     devTokenEmails: parseList(process.env.KYX_DEV_TOKEN_EMAILS).map((e) => e.toLowerCase()),
-    demoOpenVerification: toBool(process.env.KYX_DEMO_OPEN_VERIFICATION),
+    demoOpenVerification: bool(process.env.KYX_DEMO_OPEN_VERIFICATION),
     kyxRegistryContractHash: process.env.KYX_REGISTRY_CONTRACT_HASH || undefined,
     corsOrigins:
       corsOrigins.length > 0

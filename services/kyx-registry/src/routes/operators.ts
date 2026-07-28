@@ -114,7 +114,7 @@ export function registerOperatorRoutes(
     await store.upsertOperator({ email, username, verified: false, token, tokenExpiresAt });
     const verificationUrl = `${config.publicUrl}/operators/verify/${token}`;
 
-
+    
     if (config.demoOpenVerification || config.devTokenEmails.includes(email.toLowerCase())) {
       app.log.info(
         { email, verificationUrl, mode: config.demoOpenVerification ? 'demo-open' : 'dev-allowlist' },
